@@ -94,3 +94,14 @@ npm run build
 ```
 
 `npm run doctor` should stop warning about missing Supabase env vars after `.env.local` exists locally. Vercel needs the same two `VITE_` variables in its dashboard.
+
+## Verify Production Freshness
+
+After pushing a commit that Vercel should deploy, compare the latest local build with the production URL:
+
+```bash
+npm run build
+npm run verify:vercel -- --production-url https://your-couplesync-project.vercel.app
+```
+
+If the command says the production asset bundle differs from the local build, check Vercel Dashboard -> Deployments. The usual causes are a missing GitHub integration, the wrong branch, the wrong root directory, or a failed build.

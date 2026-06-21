@@ -344,6 +344,7 @@ Current update: Phase 44 is underway after the user-reported Vercel deployment, 
 - [x] Run code quality and setup checks: `npm run lint`, `npm run build`, `npm run doctor`, and `npm run verify:supabase`
 - [x] Smoke-test the live Vercel URL `https://couple-calendar-sigma.vercel.app`
 - [x] Commit and push the polish changes to GitHub so Vercel can deploy them
+- [x] Add `npm run verify:vercel` to compare local build assets against the production URL
 - [ ] Verify Vercel production switches to the pushed GitHub commit
 - **Status:** in_progress
 

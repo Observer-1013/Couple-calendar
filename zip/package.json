@@ -15,6 +15,7 @@
     "vercel:settings": "node scripts/print-vercel-settings.mjs",
     "calendar:doctor": "node scripts/check-calendar-api.mjs",
     "verify:supabase": "node scripts/check-supabase-live.mjs",
+    "verify:vercel": "node scripts/check-vercel-deployment.mjs",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"
   },

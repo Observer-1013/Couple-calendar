@@ -481,3 +481,27 @@ Date: 2026-06-22
 - Open Vercel Dashboard for `couple-calendar-sigma` and inspect Deployments after commit `76b9306`.
 - If no deployment exists for `76b9306`, reconnect the Vercel project to GitHub repo `Observer-1013/Couple-calendar`, branch `main`, with root directory `zip`.
 - If a failed deployment exists, inspect the build log and fix the reported build/root/env issue.
+
+## Phase 44 Vercel Freshness Verifier
+Date: 2026-06-22
+
+### Summary
+- Added `npm run verify:vercel`, implemented by `scripts/check-vercel-deployment.mjs`.
+- The verifier compares `dist/index.html` asset references against the HTML served by a production Vercel URL.
+- The script requires no Vercel token and falls back to `curl` when Node fetch cannot reach Vercel from the local environment.
+- Added the verifier to `npm run doctor` and documented it in `docs/VERCEL_DEPLOYMENT.md`.
+
+### Verification
+| Check | Command | Result |
+|-------|---------|--------|
+| Vercel freshness verifier | `npm run verify:vercel -- --production-url https://couple-calendar-sigma.vercel.app` | Failed as expected: production assets differ from local build |
+| Production HTTP | same command | 200 from Vercel; `last-modified: Sun, 21 Jun 2026 17:02:45 GMT`; `x-vercel-cache: HIT` |
+| Local assets | same command | `/assets/index-DJ9XLkbq.js`, `/assets/index-DNerL9zV.css` |
+| Production assets | same command | `/assets/index-DhVCpYPU.js`, `/assets/index-3f7MBCgr.css` |
+| Doctor | `npm run doctor` | Passed with `npm run verify:vercel` included |
+| Type check | `npm run lint` | Passed |
+
+### Current Release Diagnosis
+- The latest code is pushed to GitHub, but the production domain still serves the previous Vercel asset bundle.
+- The release-chain issue is now reproducible with `npm run verify:vercel -- --production-url https://couple-calendar-sigma.vercel.app`.
+- Remaining required evidence is in Vercel Dashboard: whether the latest GitHub commit triggered a deployment, failed a build, or is not connected to this production project.

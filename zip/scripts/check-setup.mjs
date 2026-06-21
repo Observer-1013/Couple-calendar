@@ -47,6 +47,7 @@ function checkFiles() {
     'docs/CALENDAR_SYNC.md',
     'docs/SUPABASE_SETUP.md',
     'docs/VERCEL_DEPLOYMENT.md',
+    'scripts/check-vercel-deployment.mjs',
     '.env.example',
     'vercel.json',
   ];
@@ -72,6 +73,7 @@ function checkPackage() {
   record(scripts['vercel:settings'] ? 'ok' : 'error', 'npm run vercel:settings', scripts['vercel:settings'] ?? 'missing');
   record(scripts['calendar:doctor'] ? 'ok' : 'error', 'npm run calendar:doctor', scripts['calendar:doctor'] ?? 'missing');
   record(scripts['verify:supabase'] ? 'ok' : 'error', 'npm run verify:supabase', scripts['verify:supabase'] ?? 'missing');
+  record(scripts['verify:vercel'] ? 'ok' : 'error', 'npm run verify:vercel', scripts['verify:vercel'] ?? 'missing');
 }
 
 function checkSupabaseEnv() {
