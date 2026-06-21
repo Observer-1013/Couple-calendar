@@ -460,4 +460,24 @@ Date: 2026-06-22
 
 ### Release Note
 - The live site currently serves asset files different from the latest local build (`index-DhVCpYPU.js` live vs `index-DJ9XLkbq.js` local build), so the mobile polish is not deployed yet.
-- Next action for release is to commit the five modified UI files and push `main`; Vercel should then build the connected GitHub repo automatically.
+- The UI polish commit has now been pushed; the remaining release question is whether the Vercel project is actually connected to the GitHub repo/branch/root and whether the deployment for the latest commit is queued, failed, or missing.
+
+## Phase 44 Release Attempt
+Date: 2026-06-22
+
+### Summary
+- Created commit `76b9306` (`Polish mobile layout and record health check`) and pushed it to `origin/main`.
+- Verified `git ls-remote origin refs/heads/main` and local `HEAD` both point to `76b9306d7dce29a57cd0114319b31f2333ea8acc`.
+- Fixed local tracking state with `git fetch origin main` after the initial push succeeded but sandbox permissions blocked updating `.git/refs/remotes/origin/main`.
+- Local Git is now clean and aligned with `origin/main`.
+
+### Vercel Status
+- After waiting and polling the production URL, `https://couple-calendar-sigma.vercel.app` still served the previous deployment: `last-modified: Sun, 21 Jun 2026 17:02:45 GMT`.
+- The live HTML still referenced `/assets/index-DhVCpYPU.js` and `/assets/index-3f7MBCgr.css`, while the latest local production build references `/assets/index-DJ9XLkbq.js` and `/assets/index-DNerL9zV.css`.
+- `npx vercel inspect` could not inspect the project because the local Vercel CLI has no login credentials and entered device-login flow.
+- The unauthenticated Vercel deployments API returned `missingToken`, so deployment queue/status cannot be inspected without the user's Vercel login/session.
+
+### Next Release Check
+- Open Vercel Dashboard for `couple-calendar-sigma` and inspect Deployments after commit `76b9306`.
+- If no deployment exists for `76b9306`, reconnect the Vercel project to GitHub repo `Observer-1013/Couple-calendar`, branch `main`, with root directory `zip`.
+- If a failed deployment exists, inspect the build log and fix the reported build/root/env issue.
