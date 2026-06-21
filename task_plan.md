@@ -4,9 +4,9 @@
 Turn the existing static CoupleSync UI into a persistent, realtime Supabase-backed couple calendar app while preserving the generated design and using minimal, staged code changes.
 
 ## Current Phase
-Phase 42
+Phase 44
 
-Current update: Phase 43 is now underway after live Supabase configuration. The local Supabase env is present and `npm run verify:supabase` passes after verifier hardening.
+Current update: Phase 44 is underway after the user-reported Vercel deployment, GitHub OAuth, Supabase persistence, invite-code flow, drag-to-calendar todos, and two-end Realtime success. The current focus is PM/Tech Lead health checking, mobile UX polish, and confirming the local-GitHub-Vercel release path.
 
 ## Phases
 
@@ -331,6 +331,19 @@ Current update: Phase 43 is now underway after live Supabase configuration. The 
 - [x] Exclude build/output artifacts from TypeScript checks so `npm run lint` is stable after builds
 - [x] Verify `npm run verify:supabase`, `npm run doctor`, `npm run lint`, and `npm run build`
 - [ ] Verify Realtime with two authenticated browser sessions
+- **Status:** in_progress
+
+### Phase 44: PM/Tech Lead Health Check & Mobile Polish
+- [x] Audit current implementation against the five MVP requirement groups and available project docs
+- [x] Confirm `DESIGN.md` is not present in the workspace and fall back to original UI requirements plus current docs
+- [x] Fix mobile top navigation wrapping so 日/周/月/年 remains visible
+- [x] Collapse both side panels automatically on mobile-sized screens
+- [x] Convert expanded mobile side panels into overlay drawers instead of layout-squeezing columns
+- [x] Tighten mobile calendar spacing and month-cell height without changing the desktop layout
+- [x] Run local browser checks for mobile, mobile drawer states, and desktop
+- [x] Run code quality and setup checks: `npm run lint`, `npm run build`, `npm run doctor`, and `npm run verify:supabase`
+- [x] Smoke-test the live Vercel URL `https://couple-calendar-sigma.vercel.app`
+- [ ] Commit and push the polish changes to GitHub so Vercel can deploy them
 - **Status:** in_progress
 
 ## Key Questions

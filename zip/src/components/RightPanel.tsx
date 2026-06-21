@@ -75,7 +75,7 @@ export function RightPanel({ isOpen, setIsOpen, messages, todos, activeTab, setA
   const formatTodoDate = (date: string) => format(new Date(`${date}T00:00:00`), 'MMM d');
 
   return (
-    <aside className="w-[320px] h-full flex flex-col bg-[#f5f7f9] border-l border-[#eceef0] shrink-0 p-6 shadow-[-10px_0_30px_rgba(0,0,0,0.02)] relative">
+    <aside className="fixed md:static right-0 top-0 z-40 w-[min(320px,calc(100vw-3rem))] md:w-[320px] h-full flex flex-col bg-[#f5f7f9]/95 md:bg-[#f5f7f9] backdrop-blur-md md:backdrop-blur-0 border-l border-[#eceef0] shrink-0 p-6 shadow-2xl md:shadow-[-10px_0_30px_rgba(0,0,0,0.02)] md:relative">
       
       <button 
         onClick={() => setIsOpen(false)} 

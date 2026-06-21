@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Calendar } from './components/Calendar';
 import { RightPanel } from './components/RightPanel';
@@ -15,8 +15,24 @@ export default function App() {
   const store = useCoupleSyncStore(auth.session);
   
   // Sidebar states
-  const [leftOpen, setLeftOpen] = useState(true);
-  const [rightOpen, setRightOpen] = useState(true);
+  const [leftOpen, setLeftOpen] = useState(() => (
+    typeof window === 'undefined' ? true : window.matchMedia('(min-width: 768px)').matches
+  ));
+  const [rightOpen, setRightOpen] = useState(() => (
+    typeof window === 'undefined' ? true : window.matchMedia('(min-width: 768px)').matches
+  ));
+  useEffect(() => {
+    const mobileQuery = window.matchMedia('(max-width: 767px)');
+    const closePanelsOnMobile = () => {
+      if (!mobileQuery.matches) return;
+      setLeftOpen(false);
+      setRightOpen(false);
+    };
+
+    closePanelsOnMobile();
+    mobileQuery.addEventListener('change', closePanelsOnMobile);
+    return () => mobileQuery.removeEventListener('change', closePanelsOnMobile);
+  }, []);
   const [rightTab, setRightTab] = useState<'inbox' | 'todos'>('inbox');
   const [editingNames, setEditingNames] = useState(false);
   const [nameDraft, setNameDraft] = useState<UserNames>(store.userNames);

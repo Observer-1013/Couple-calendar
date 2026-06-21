@@ -319,11 +319,11 @@ export function Calendar({ currentDate, setCurrentDate, todos, toggleTodo, habit
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full p-4 md:p-6 2xl:p-10 relative min-w-0">
+    <div className="flex-1 flex flex-col h-full p-3 md:p-6 2xl:p-10 relative min-w-0">
       
       {/* Calendar Header */}
-      <div className="flex items-center gap-6 mb-2 sticky top-0 z-10 pb-2">
-        <h2 className="text-2xl md:text-3xl lg:text-4xl font-display font-semibold text-[#191c1e] tracking-tight">{title}</h2>
+      <div className="flex flex-wrap items-center gap-2 md:gap-6 mb-2 sticky top-0 z-10 pb-2">
+        <h2 className="min-w-0 flex-1 text-xl md:text-3xl lg:text-4xl font-display font-semibold text-[#191c1e] tracking-tight truncate">{title}</h2>
         <div className="flex items-center gap-1">
           <button onClick={handlePrev} className="p-1 hover:bg-black/5 rounded-full transition-colors text-[#446172]">
             <ChevronLeft className="w-5 h-5" />
@@ -332,7 +332,7 @@ export function Calendar({ currentDate, setCurrentDate, todos, toggleTodo, habit
             <ChevronRight className="w-5 h-5" />
           </button>
         </div>
-        <div className="ml-auto flex items-center md:pr-4">
+        <div className="basis-full md:basis-auto md:ml-auto flex items-center justify-end md:pr-4">
           <button onClick={() => openEventDialog(format(currentDate, 'yyyy-MM-dd'))} className="mr-2 px-3 md:px-4 py-1.5 text-xs font-semibold tracking-wider hover:bg-[#446172]/10 rounded-full transition-colors text-[#446172] border border-[#d8dadc] uppercase whitespace-nowrap bg-white/50 flex items-center gap-1.5">
             <CalendarPlus className="w-3.5 h-3.5" /> New Event
           </button>
@@ -347,7 +347,7 @@ export function Calendar({ currentDate, setCurrentDate, todos, toggleTodo, habit
       {(viewMode === 'Day' || viewMode === 'Week') && renderTimeGrid()}
 
       {viewMode === 'Month' && (
-        <div className="flex-1 flex flex-col min-h-0 border border-[#eceef0] rounded-2xl overflow-hidden bg-[#eceef0] gap-px max-h-fit mt-4 shadow-sm">
+        <div className="flex-1 flex flex-col min-h-0 border border-[#eceef0] rounded-2xl overflow-hidden bg-[#eceef0] gap-px max-h-fit mt-2 md:mt-4 shadow-sm">
           <div className="grid grid-cols-7 bg-white">
           {weekDays.map(day => (
             <div key={day} className="text-center text-[10px] md:text-[11px] font-semibold tracking-widest text-[#a0a5a9] py-3">
@@ -371,7 +371,7 @@ export function Calendar({ currentDate, setCurrentDate, todos, toggleTodo, habit
                 key={day.toString()} 
                 {...dateDropProps}
                 className={cn(
-                  "bg-white p-1 md:p-2 min-h-[100px] md:min-h-[120px] transition-colors relative flex flex-col gap-1",
+                  "bg-white p-1 md:p-2 min-h-[82px] sm:min-h-[100px] md:min-h-[120px] transition-colors relative flex flex-col gap-1",
                   !isCurrMonth && "opacity-40 pointer-events-none",
                   dropTargetDate === formattedDate && "bg-[#c8e6d9]/30 ring-2 ring-inset ring-[#446172]/30"
                 )}

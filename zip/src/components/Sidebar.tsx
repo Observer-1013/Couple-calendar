@@ -86,7 +86,7 @@ export function Sidebar({ layers, activeLayers, toggleLayer, toggleAll, isOpen, 
   };
 
   return (
-    <aside className="w-[280px] h-full flex flex-col bg-[#f7f9fb]/50 border-r border-[#eceef0] shrink-0 overflow-y-auto no-scrollbar relative">
+    <aside className="fixed md:static left-0 top-0 z-40 w-[min(280px,calc(100vw-3rem))] md:w-[280px] h-full flex flex-col bg-[#f7f9fb]/95 md:bg-[#f7f9fb]/50 backdrop-blur-md md:backdrop-blur-0 border-r border-[#eceef0] shrink-0 overflow-y-auto no-scrollbar md:relative shadow-2xl md:shadow-none">
       <button 
         onClick={() => setIsOpen(false)} 
         className="absolute right-4 top-6 p-1.5 hover:bg-black/5 rounded-md text-[#72787c] transition-colors"

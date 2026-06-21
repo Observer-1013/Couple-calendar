@@ -210,3 +210,13 @@ Early bullets in this section record the initial generated prototype state; late
 - Playwright search smoke verified the Search button opens the `Search CoupleSync` dialog, accepts text input, and returns the expected `Dinner Date` event result in demo mode.
 - Playwright notifications smoke verified the Notifications button opens the Today panel with Calendar, To-Dos, and Habits sections.
 - Browser console smoke after the search/notifications flow reported 0 errors and 0 warnings.
+
+## Phase 44 Health Check Findings
+- Mobile UX risk found and fixed: the generated three-column layout could leave both sidebars expanded on a phone-sized viewport, making the central month calendar feel cramped. The app now collapses both panels on mobile and opens them as overlay drawers.
+- Mobile top navigation risk found and fixed: the 日/周/月/年 segmented control could be squeezed out by the header actions. The header now wraps and keeps view switching visible on 390px-wide screens.
+- Month view on mobile is now stable and scroll-free, but still dense by nature. It works as a glanceable overview; day/week views remain the better high-frequency mobile interaction surfaces.
+- Desktop layout remained intact after the mobile changes. At 1440x1000, the app kept both side panels open, the main calendar width was 844px, and there was no horizontal overflow.
+- Code-quality scan found no active app-level `console.log` or `debugger` statements in `zip/src` or `zip/api`.
+- `zip/src/mockData.ts` is still intentionally imported by `useCoupleSyncStore` as the no-Supabase demo fallback. It is not the production path when Supabase env/session are present, so it should not be deleted without a separate confirmed cleanup decision.
+- `DESIGN.md` was not present in the workspace during this audit. UI conclusions were based on the original five core requirements, generated design direction, and the current implementation docs.
+- The production domain `https://couple-calendar-sigma.vercel.app` serves a valid Vercel page with `CoupleSync` title and GitHub login entry, but it does not yet include the latest local mobile polish because those changes have not been committed and pushed.

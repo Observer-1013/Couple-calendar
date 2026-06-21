@@ -427,3 +427,37 @@
 | What's the goal? | Turn the static CoupleSync UI into a persistent, realtime Supabase-backed couple calendar app with deployment and calendar sync |
 | What have I learned? | Supabase table endpoints are healthy; `/rest/v1/` metadata can be protected for anon keys without indicating app failure |
 | What have I done? | Fixed verifier accuracy, stabilized TypeScript checks, and updated the project progress records |
+
+## Phase 44 PM/Tech Lead Health Check
+Date: 2026-06-22
+
+### Summary
+- User reports the MVP is live on Vercel at `https://couple-calendar-sigma.vercel.app`, with Supabase real writes, GitHub OAuth, invite codes, role display, drag-to-calendar todos, and two-end Realtime working.
+- Confirmed `DESIGN.md` is not present in the workspace; the audit used the original five core requirements plus the current repo docs.
+- Applied minimal mobile UI polish: mobile top-nav wrapping, automatic mobile side-panel collapse, overlay-style side drawers, and tighter mobile calendar spacing.
+- Local Git is connected to `https://github.com/Observer-1013/Couple-calendar.git`; current polish changes are local-only until committed and pushed.
+
+### Verification
+| Check | Command / Tool | Result |
+|-------|----------------|--------|
+| Type check | `npm run lint` in `zip/` | Passed |
+| Production build | `npm run build` in `zip/` | Passed with existing chunk-size warning |
+| Setup doctor | `npm run doctor` in `zip/` | Passed; Supabase env present |
+| Live Supabase schema | `npm run verify:supabase` in `zip/` | Passed; all expected table endpoints reachable |
+| Local mobile render | Playwright at `http://localhost:3001/`, 390x844 | 日/周/月/年 visible, side panels collapsed, no horizontal overflow |
+| Mobile drawer behavior | Playwright left/right drawer screenshots | Drawers overlay the calendar without increasing document width |
+| Local desktop render | Playwright at `http://localhost:3001/`, 1440x1000 | Three-column layout intact; document width equals viewport |
+| Live Vercel HTTP | `curl -I https://couple-calendar-sigma.vercel.app` | Returned 200 from Vercel |
+| Live Vercel browser smoke | Playwright at the production URL | Title `CoupleSync`, GitHub login button visible, 0 console errors |
+| Release path | `git status --short --branch` and `git remote -v` | Branch tracks `origin/main`; 5 UI files modified locally |
+
+### Screenshots
+- Mobile after polish: `zip/output/playwright/mobile-after-polish.png`
+- Mobile left drawer: `zip/output/playwright/mobile-left-drawer-after-polish.png`
+- Mobile right drawer: `zip/output/playwright/mobile-right-drawer-after-polish.png`
+- Desktop after polish: `zip/output/playwright/desktop-after-polish.png`
+- Live production auth smoke: `zip/output/playwright/live-mobile-smoke.png`
+
+### Release Note
+- The live site currently serves asset files different from the latest local build (`index-DhVCpYPU.js` live vs `index-DJ9XLkbq.js` local build), so the mobile polish is not deployed yet.
+- Next action for release is to commit the five modified UI files and push `main`; Vercel should then build the connected GitHub repo automatically.
