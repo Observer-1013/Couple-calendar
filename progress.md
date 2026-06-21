@@ -505,3 +505,24 @@ Date: 2026-06-22
 - The latest code is pushed to GitHub, but the production domain still serves the previous Vercel asset bundle.
 - The release-chain issue is now reproducible with `npm run verify:vercel -- --production-url https://couple-calendar-sigma.vercel.app`.
 - Remaining required evidence is in Vercel Dashboard: whether the latest GitHub commit triggered a deployment, failed a build, or is not connected to this production project.
+
+## Phase 44 Production Verification Complete
+Date: 2026-06-22
+
+### Summary
+- Changed this repository's local Git author to `Observer-1013 <210874204+Observer-1013@users.noreply.github.com>`.
+- Created and pushed empty commit `10b5a17` (`Trigger deploy with Observer-1013 author`) to trigger Vercel with the correct Git author.
+- Vercel Dashboard showed commit `10b5a17` as `Ready` and `Production`; previous `LLL664`-authored deployments remained blocked.
+- `npm run verify:vercel -- --production-url https://couple-calendar-sigma.vercel.app` now passes.
+- Production now serves the same asset bundle as the latest local build: `/assets/index-DJ9XLkbq.js` and `/assets/index-DNerL9zV.css`.
+- Playwright mobile smoke opened the production URL at 390x844, saw the `CoupleSync` Auth screen and `Continue with GitHub` button, and reported 0 console errors.
+
+### Evidence
+| Check | Evidence | Result |
+|-------|----------|--------|
+| Git author | `git log -1 --format=...` after `10b5a17` | Author and committer are `Observer-1013` |
+| GitHub sync | `git log --oneline --decorate -4` | `10b5a17` is `HEAD`, `origin/main`, and `origin/HEAD` |
+| Production freshness | `npm run verify:vercel -- --production-url https://couple-calendar-sigma.vercel.app` | Passed |
+| Production HTML headers | verifier output | 200 from Vercel; `last-modified: Sun, 21 Jun 2026 18:34:06 GMT` |
+| Production mobile smoke | Playwright snapshot and console | Auth screen rendered; 0 errors, 0 warnings |
+| Production screenshot | `zip/output/playwright/live-mobile-after-deploy.png` | Saved |
