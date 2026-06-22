@@ -232,24 +232,24 @@ export function RightPanel({ isOpen, setIsOpen, messages, todos, habits, activeT
       
       <button 
         onClick={() => setIsOpen(false)} 
-        className="absolute left-4 top-6 p-1.5 hover:bg-black/5 rounded-md text-[#72787c] transition-colors"
+        className="absolute left-3 top-6 p-2 hover:bg-black/5 rounded-full text-[#72787c] transition-colors"
         title="Collapse Panel"
       >
-        <PanelRightClose className="w-4 h-4" />
+        <PanelRightClose className="w-5 h-5" />
       </button>
 
-      <div className="absolute left-4 top-16 flex flex-col gap-2">
+      <div className="absolute left-3 top-[92px] flex flex-col gap-6">
         {PANEL_TABS.map(({ id, title, Icon }) => (
           <button
             key={id}
             onClick={() => setActiveTab(id)}
             className={cn(
-              "p-1.5 rounded-lg transition-colors",
+              "p-2 rounded-full transition-colors",
               activeTab === id ? "bg-[#446172]/10 text-[#446172]" : "text-[#72787c] hover:bg-black/5 hover:text-[#446172]",
             )}
             title={title}
           >
-            <Icon className="w-4 h-4" />
+            <Icon className="w-5 h-5" />
           </button>
         ))}
       </div>
