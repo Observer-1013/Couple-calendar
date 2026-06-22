@@ -23,3 +23,55 @@ h1, h2, h3, h4, h5, h6 {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+:where([data-theme="dark"]) {
+  color-scheme: dark;
+  background-color: #121619;
+}
+
+:where([data-theme="dark"]) [class*="bg-[#f7f9fb"],
+:where([data-theme="dark"]) [class*="bg-[#f5f7f9"] {
+  background-color: #121619 !important;
+}
+
+:where([data-theme="dark"]) [class*="bg-white"],
+:where([data-theme="dark"]) [class*="bg-[#fbfcfd"] {
+  background-color: rgba(25, 31, 35, 0.94) !important;
+}
+
+:where([data-theme="dark"]) [class*="bg-[#eceef0"] {
+  background-color: #2a3237 !important;
+}
+
+:where([data-theme="dark"]) [class*="border-[#eceef0"],
+:where([data-theme="dark"]) [class*="border-[#d8dadc"],
+:where([data-theme="dark"]) [class*="border-white"] {
+  border-color: #2f3a40 !important;
+}
+
+:where([data-theme="dark"]) [class*="text-[#191c1e"] {
+  color: #f4f7f8 !important;
+}
+
+:where([data-theme="dark"]) [class*="text-[#42474c"] {
+  color: #c9d0d4 !important;
+}
+
+:where([data-theme="dark"]) [class*="text-[#72787c"] {
+  color: #9ca8af !important;
+}
+
+:where([data-theme="dark"]) [class*="text-[#a0a5a9"] {
+  color: #7f8b93 !important;
+}
+
+:where([data-theme="dark"]) [class*="text-[#446172"] {
+  color: #9dc5d4 !important;
+}
+
+:where([data-theme="dark"]) input,
+:where([data-theme="dark"]) textarea,
+:where([data-theme="dark"]) select {
+  background-color: #151b1f !important;
+  color: #f4f7f8;
+}

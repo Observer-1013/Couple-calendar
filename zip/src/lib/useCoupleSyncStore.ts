@@ -427,6 +427,27 @@ export function useCoupleSyncStore(session: Session | null) {
     setActiveLayers(previous => [...previous, newLayer.id]);
   }, [dbMode, layers.length, workspace]);
 
+  const updateLayerColor = useCallback(async (id: string, color: string) => {
+    const layer = layers.find(item => item.id === id || item.databaseId === id);
+    if (!layer) return;
+
+    setLayers(previous => previous.map(item => (
+      item.id === layer.id ? { ...item, color } : item
+    )));
+
+    if (dbMode && supabase && layer.databaseId) {
+      const { error: updateError } = await supabase
+        .from('layers')
+        .update({ color })
+        .eq('id', layer.databaseId);
+
+      if (updateError) {
+        setError(updateError.message);
+        reloadRef.current();
+      }
+    }
+  }, [dbMode, layers]);
+
   const createHabitDefinition = useCallback(async (name: string, color: string) => {
     const habitName = name.trim();
     if (!habitName) return;
@@ -460,6 +481,42 @@ export function useCoupleSyncStore(session: Session | null) {
       },
     ]);
   }, [dbMode, habitDefinitions.length, workspace]);
+
+  const updateHabitDefinition = useCallback(async (id: string, updates: Partial<Pick<HabitDefinition, 'name' | 'color' | 'active'>>) => {
+    const definition = habitDefinitions.find(habit => habit.id === id);
+    if (!definition) return;
+    const nextName = updates.name?.trim();
+    const nextUpdates = {
+      name: nextName || definition.name,
+      color: updates.color || definition.color,
+      active: updates.active ?? definition.active,
+    };
+
+    setHabitDefinitions(previous => previous.map(habit => (
+      habit.id === id ? { ...habit, ...nextUpdates } : habit
+    )));
+    setHabits(previous => previous.map(log => (
+      log.habitId === id
+        ? { ...log, habit: nextUpdates.name, name: nextUpdates.name, color: nextUpdates.color }
+        : log
+    )));
+
+    if (dbMode && supabase) {
+      const { error: updateError } = await supabase
+        .from('habit_definitions')
+        .update({
+          name: nextUpdates.name,
+          color: nextUpdates.color,
+          is_active: nextUpdates.active,
+        })
+        .eq('id', id);
+
+      if (updateError) {
+        setError(updateError.message);
+        reloadRef.current();
+      }
+    }
+  }, [dbMode, habitDefinitions]);
 
   const addHabitLog = useCallback(async (date: string, habitId: string) => {
     const definition = habitDefinitions.find(habit => habit.id === habitId);
@@ -713,6 +770,53 @@ export function useCoupleSyncStore(session: Session | null) {
     )));
   }, [dbMode, layers]);
 
+  const deleteCalendarEvent = useCallback(async (id: string) => {
+    const event = events.find(item => item.id === id);
+    if (!event) return;
+
+    setEvents(previous => previous.filter(item => item.id !== id));
+
+    if (dbMode && supabase) {
+      const { error: deleteError } = await supabase
+        .from('events')
+        .delete()
+        .eq('id', id);
+
+      if (deleteError) {
+        setError(deleteError.message);
+        reloadRef.current();
+      }
+    }
+  }, [dbMode, events]);
+
+  const restoreCalendarEvent = useCallback(async (event: CalendarEvent) => {
+    setEvents(previous => previous.some(item => item.id === event.id) ? previous : [...previous, event]);
+    const layer = layers.find(item => item.id === event.layerId || item.databaseId === event.layerId);
+
+    if (dbMode && supabase && workspace && session) {
+      const { error: insertError } = await supabase
+        .from('events')
+        .insert({
+          id: event.id,
+          couple_id: workspace.coupleId,
+          title: event.title,
+          event_date: event.date,
+          start_time: event.allDay ? null : event.startTime || null,
+          end_time: event.allDay ? null : event.endTime || null,
+          all_day: Boolean(event.allDay),
+          owner_role: event.user,
+          layer_id: layer?.databaseId ?? null,
+          source: event.source || 'manual',
+          created_by: session.user.id,
+        });
+
+      if (insertError) {
+        setError(insertError.message);
+        reloadRef.current();
+      }
+    }
+  }, [dbMode, layers, session, workspace]);
+
   const addNewTodo = useCallback(async (assignee: User | 'both', text: string, isFlexible: boolean = true) => {
     const taskText = text.trim();
     if (!taskText) return;
@@ -746,6 +850,50 @@ export function useCoupleSyncStore(session: Session | null) {
     };
     setTodos(previous => [...previous, newTodo]);
   }, [currentDate, dbMode, session, workspace]);
+
+  const deleteTodo = useCallback(async (id: string) => {
+    const todo = todos.find(item => item.id === id);
+    if (!todo) return;
+
+    setTodos(previous => previous.filter(item => item.id !== id));
+
+    if (dbMode && supabase) {
+      const { error: deleteError } = await supabase
+        .from('todos')
+        .delete()
+        .eq('id', id);
+
+      if (deleteError) {
+        setError(deleteError.message);
+        reloadRef.current();
+      }
+    }
+  }, [dbMode, todos]);
+
+  const restoreTodo = useCallback(async (todo: ToDo) => {
+    setTodos(previous => previous.some(item => item.id === todo.id) ? previous : [...previous, todo]);
+
+    if (dbMode && supabase && workspace && session) {
+      const { error: insertError } = await supabase
+        .from('todos')
+        .insert({
+          id: todo.id,
+          couple_id: workspace.coupleId,
+          text: todo.text,
+          completed: todo.completed,
+          scheduled_date: todo.date ?? null,
+          assignee_role: todo.assignee,
+          created_by: session.user.id,
+          completed_by: todo.completed ? session.user.id : null,
+          completed_at: todo.completed ? new Date().toISOString() : null,
+        });
+
+      if (insertError) {
+        setError(insertError.message);
+        reloadRef.current();
+      }
+    }
+  }, [dbMode, session, workspace]);
 
   const addInboxMessage = useCallback(async (content: string, category: MessageCategory) => {
     const messageContent = content.trim();
@@ -820,6 +968,69 @@ export function useCoupleSyncStore(session: Session | null) {
         ? { ...message, replies: [...(message.replies ?? []), reply] }
         : message
     )));
+  }, [dbMode, session, workspace]);
+
+  const deleteInboxMessage = useCallback(async (id: string) => {
+    const message = messages.find(item => item.id === id);
+    if (!message) return;
+
+    setMessages(previous => previous.filter(item => item.id !== id));
+
+    if (dbMode && supabase) {
+      const { error: deleteError } = await supabase
+        .from('inbox_messages')
+        .delete()
+        .eq('id', id);
+
+      if (deleteError) {
+        setError(deleteError.message);
+        reloadRef.current();
+      }
+    }
+  }, [dbMode, messages]);
+
+  const restoreInboxMessage = useCallback(async (message: Message) => {
+    setMessages(previous => previous.some(item => item.id === message.id) ? previous : [message, ...previous]);
+
+    if (dbMode && supabase && workspace && session) {
+      const { error: insertError } = await supabase.from('inbox_messages').insert({
+        id: message.id,
+        couple_id: workspace.coupleId,
+        parent_id: null,
+        sender_id: session.user.id,
+        sender_role: message.from,
+        category: message.category,
+        content: message.content,
+        converted_event_id: message.convertedEventId ?? null,
+        created_at: message.timestamp,
+      });
+
+      if (insertError) {
+        setError(insertError.message);
+        reloadRef.current();
+        return;
+      }
+
+      const replies = message.replies ?? [];
+      if (replies.length > 0) {
+        const { error: repliesError } = await supabase.from('inbox_messages').insert(replies.map(reply => ({
+          id: reply.id,
+          couple_id: workspace.coupleId,
+          parent_id: message.id,
+          sender_id: session.user.id,
+          sender_role: reply.from,
+          category: reply.category,
+          content: reply.content,
+          converted_event_id: reply.convertedEventId ?? null,
+          created_at: reply.timestamp,
+        })));
+
+        if (repliesError) {
+          setError(repliesError.message);
+          reloadRef.current();
+        }
+      }
+    }
   }, [dbMode, session, workspace]);
 
   const changeNames = useCallback(async (nextNames: UserNames) => {
@@ -931,10 +1142,16 @@ export function useCoupleSyncStore(session: Session | null) {
     events,
     habits,
     habitDefinitions,
+    deleteCalendarEvent,
+    deleteInboxMessage,
+    deleteTodo,
     layers,
     loading,
     messages,
     replyToMessage,
+    restoreCalendarEvent,
+    restoreInboxMessage,
+    restoreTodo,
     setupLoading,
     setupRequired,
     setCurrentDate,
@@ -946,6 +1163,8 @@ export function useCoupleSyncStore(session: Session | null) {
     startGoogleCalendarConnect,
     syncGoogleCalendar,
     updateCalendarEvent,
+    updateHabitDefinition,
+    updateLayerColor,
     userNames,
     workspace,
     joinCouple,

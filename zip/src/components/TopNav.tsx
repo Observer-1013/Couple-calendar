@@ -6,13 +6,13 @@ interface TopNavProps {
   viewMode: ViewMode;
   setViewMode: (v: ViewMode) => void;
   userNames: UserNames;
-  changeNames: () => void;
+  openSettings: () => void;
   onOpenSearch: () => void;
   onOpenNotifications: () => void;
   onSignOut?: () => void;
 }
 
-export function TopNav({ viewMode, setViewMode, userNames, changeNames, onOpenSearch, onOpenNotifications, onSignOut }: TopNavProps) {
+export function TopNav({ viewMode, setViewMode, userNames, openSettings, onOpenSearch, onOpenNotifications, onSignOut }: TopNavProps) {
   const views: ViewMode[] = ['Day', 'Week', 'Month', 'Year'];
 
   return (
@@ -24,7 +24,7 @@ export function TopNav({ viewMode, setViewMode, userNames, changeNames, onOpenSe
       <div className="order-2 md:order-3 flex items-center gap-1 md:gap-4 text-[#72787c]">
         <button onClick={onOpenSearch} className="p-2 hover:bg-black/5 rounded-full transition-colors" title="Search" aria-label="Search"><Search className="w-5 h-5" /></button>
         <button onClick={onOpenNotifications} className="p-2 hover:bg-black/5 rounded-full transition-colors" title="Notifications" aria-label="Notifications"><Bell className="w-5 h-5" /></button>
-        <button onClick={changeNames} className="p-2 hover:bg-black/5 rounded-full transition-colors" title="Change User Names"><Settings className="w-5 h-5" /></button>
+        <button onClick={openSettings} className="p-2 hover:bg-black/5 rounded-full transition-colors" title="Settings" aria-label="Settings"><Settings className="w-5 h-5" /></button>
         {onSignOut && (
           <button onClick={onSignOut} className="p-2 hover:bg-black/5 rounded-full transition-colors" title="Sign out">
             <LogOut className="w-5 h-5" />

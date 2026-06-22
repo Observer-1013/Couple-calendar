@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { CalendarConnection, CoupleWorkspace, HabitDefinition, Layer, ToDo, User as UserRole, UserNames } from '../types';
 import { cn } from '../lib/utils';
-import { User, Heart, CheckCircle2, Plus, MailOpen, Archive, Menu, PanelLeftClose, Copy, Wifi, WifiOff, CalendarSync, ExternalLink, RefreshCw } from 'lucide-react';
+import { User, Heart, CheckCircle2, Plus, MailOpen, Archive, Menu, PanelLeftClose, Wifi, WifiOff, CalendarSync, ExternalLink, RefreshCw, Trash2 } from 'lucide-react';
 
 interface SidebarProps {
   layers: Layer[];
@@ -18,6 +18,7 @@ interface SidebarProps {
   currentUserRole: UserRole;
   addNewTodo: (assignee: UserRole, text: string) => void;
   toggleTodo: (todoId: string) => void;
+  deleteTodo: (todoId: string) => void;
   workspace: CoupleWorkspace | null;
   isBackendConfigured: boolean;
   calendarConnections: CalendarConnection[];
@@ -26,7 +27,7 @@ interface SidebarProps {
   syncGoogleCalendar: () => void;
 }
 
-export function Sidebar({ layers, activeLayers, toggleLayer, toggleAll, isOpen, setIsOpen, userNames, createCustomLayer, habitDefinitions, createHabitDefinition, todos, currentUserRole, addNewTodo, toggleTodo, workspace, isBackendConfigured, calendarConnections, calendarActionLoading, connectGoogleCalendar, syncGoogleCalendar }: SidebarProps) {
+export function Sidebar({ layers, activeLayers, toggleLayer, toggleAll, isOpen, setIsOpen, userNames, createCustomLayer, habitDefinitions, createHabitDefinition, todos, currentUserRole, addNewTodo, toggleTodo, deleteTodo, workspace, isBackendConfigured, calendarConnections, calendarActionLoading, connectGoogleCalendar, syncGoogleCalendar }: SidebarProps) {
   const isAllVisible = activeLayers.length === layers.length;
   const [isCreating, setIsCreating] = useState(false);
   const [layerName, setLayerName] = useState('');
@@ -34,7 +35,6 @@ export function Sidebar({ layers, activeLayers, toggleLayer, toggleAll, isOpen, 
   const [habitName, setHabitName] = useState('');
   const [habitColor, setHabitColor] = useState('#4ade80');
   const [personalTaskText, setPersonalTaskText] = useState('');
-  const [copiedInvite, setCopiedInvite] = useState(false);
 
   const personalTodos = todos.filter(todo => !todo.date && todo.assignee === currentUserRole);
   const currentUserName = currentUserRole === 'him' ? userNames.him : userNames.her;
@@ -51,17 +51,6 @@ export function Sidebar({ layers, activeLayers, toggleLayer, toggleAll, isOpen, 
   const googleLastSynced = googleConnection?.lastSyncedAt
     ? new Date(googleConnection.lastSyncedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
     : null;
-
-  const copyInviteCode = async () => {
-    if (!workspace?.inviteCode) return;
-    try {
-      await navigator.clipboard.writeText(workspace.inviteCode);
-      setCopiedInvite(true);
-      window.setTimeout(() => setCopiedInvite(false), 1400);
-    } catch {
-      setCopiedInvite(false);
-    }
-  };
 
   if (!isOpen) {
     return (
@@ -118,15 +107,6 @@ export function Sidebar({ layers, activeLayers, toggleLayer, toggleAll, isOpen, 
           <div className="mt-1 text-[11px] text-[#72787c]">
             Role: {currentUserRole === 'him' ? userNames.him : userNames.her}
           </div>
-          {workspace?.inviteCode && (
-            <button
-              onClick={copyInviteCode}
-              className="mt-3 w-full h-8 rounded-lg bg-[#446172]/10 text-[#446172] text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-[#446172]/20 transition-colors"
-            >
-              <Copy className="w-3.5 h-3.5" />
-              {copiedInvite ? 'Copied' : `Invite: ${workspace.inviteCode}`}
-            </button>
-          )}
         </div>
 
         <div className="mb-6 rounded-xl border border-[#eceef0] bg-white/60 p-3">
@@ -223,19 +203,27 @@ export function Sidebar({ layers, activeLayers, toggleLayer, toggleAll, isOpen, 
 
           <div className="space-y-2 mb-3">
             {personalTodos.map(todo => (
-              <button
+              <div
                 key={todo.id}
-                onClick={() => toggleTodo(todo.id)}
-                className="w-full rounded-lg bg-white/60 px-2.5 py-2 text-left flex items-start gap-2 hover:bg-white transition-colors"
+                className="group w-full rounded-lg bg-white/60 px-2.5 py-2 flex items-start gap-2 hover:bg-white transition-colors"
               >
-                <span className={cn(
-                  "w-3 h-3 rounded border flex-shrink-0 mt-0.5",
-                  todo.completed ? "bg-[#446172] border-[#446172]" : "border-[#a0a5a9] bg-white",
-                )} />
-                <span className={cn("min-w-0 flex-1 text-xs text-[#42474c]", todo.completed && "line-through text-[#a0a5a9]")}>
-                  {todo.text}
-                </span>
-              </button>
+                <button onClick={() => toggleTodo(todo.id)} className="min-w-0 flex flex-1 items-start gap-2 text-left">
+                  <span className={cn(
+                    "w-3 h-3 rounded border flex-shrink-0 mt-0.5",
+                    todo.completed ? "bg-[#446172] border-[#446172]" : "border-[#a0a5a9] bg-white",
+                  )} />
+                  <span className={cn("min-w-0 flex-1 text-xs text-[#42474c]", todo.completed && "line-through text-[#a0a5a9]")}>
+                    {todo.text}
+                  </span>
+                </button>
+                <button
+                  onClick={() => deleteTodo(todo.id)}
+                  className="rounded-md p-1 text-[#a0a5a9] opacity-100 md:opacity-0 transition-opacity hover:bg-[#a65d5d]/10 hover:text-[#a65d5d] md:group-hover:opacity-100"
+                  title="Delete task"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
             ))}
             {personalTodos.length === 0 && (
               <div className="rounded-lg bg-white/40 px-2.5 py-2 text-xs text-[#a0a5a9]">

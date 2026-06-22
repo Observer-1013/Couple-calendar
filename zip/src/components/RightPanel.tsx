@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Message, MessageCategory, ToDo, User, UserNames } from '../types';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
-import { PanelRightClose, MessageSquareShare, Reply, CalendarPlus, Plus, Calendar as CalendarIcon, CheckSquare, Send, Undo2 } from 'lucide-react';
+import { PanelRightClose, MessageSquareShare, Reply, CalendarPlus, Plus, Calendar as CalendarIcon, CheckSquare, Send, Undo2, Trash2 } from 'lucide-react';
 import { setCalendarDragData } from '../lib/calendarDrag';
 
 interface RightPanelProps {
@@ -19,10 +19,12 @@ interface RightPanelProps {
   unassignTodoFromDate: (todoId: string) => void;
   replyToMessage: (messageId: string, content: string) => void;
   toggleTodo: (todoId: string) => void;
+  deleteTodo: (todoId: string) => void;
+  deleteInboxMessage: (messageId: string) => void;
   userNames: UserNames;
 }
 
-export function RightPanel({ isOpen, setIsOpen, messages, todos, activeTab, setActiveTab, addEventFromMessage, addInboxMessage, addNewTodo, assignTodoToDate, unassignTodoFromDate, replyToMessage, toggleTodo, userNames }: RightPanelProps) {
+export function RightPanel({ isOpen, setIsOpen, messages, todos, activeTab, setActiveTab, addEventFromMessage, addInboxMessage, addNewTodo, assignTodoToDate, unassignTodoFromDate, replyToMessage, toggleTodo, deleteTodo, deleteInboxMessage, userNames }: RightPanelProps) {
   const [todoFilter, setTodoFilter] = useState<'all' | 'him' | 'her'>('all');
   const [newMessage, setNewMessage] = useState('');
   const [newCategory, setNewCategory] = useState<MessageCategory>('idea');
@@ -183,6 +185,9 @@ export function RightPanel({ isOpen, setIsOpen, messages, todos, activeTab, setA
               <button onClick={() => addEventFromMessage(msg)} className="flex items-center gap-1 text-xs font-medium hover:text-[#446172] transition-colors line-clamp-1">
                 <CalendarPlus className="w-3.5 h-3.5" /> 转化为日程
               </button>
+              <button onClick={() => deleteInboxMessage(msg.id)} className="ml-auto flex items-center gap-1 text-xs font-medium text-[#a65d5d] hover:bg-[#a65d5d]/10 px-1.5 py-0.5 rounded transition-colors">
+                <Trash2 className="w-3.5 h-3.5" /> 删除
+              </button>
             </div>
             {replyingTo === msg.id && (
               <div className="mt-3 flex gap-2">
@@ -262,9 +267,14 @@ export function RightPanel({ isOpen, setIsOpen, messages, todos, activeTab, setA
                    <span className="text-[10px] font-medium text-[#72787c] capitalize px-1.5 py-0.5 bg-black/5 rounded inline-block">
                      {todo.assignee === 'him' ? userNames.him : todo.assignee === 'her' ? userNames.her : 'Shared'}
                    </span>
-                   <button onClick={() => assignTodoToDate(todo.id, format(new Date(), 'yyyy-MM-dd'))} className="text-[10px] flex items-center gap-1 text-[#446172] opacity-0 group-hover:opacity-100 hover:bg-[#446172]/10 px-1.5 py-0.5 rounded transition-all">
-                     <CalendarIcon className="w-3 h-3" /> Today
-                   </button>
+                   <div className="flex items-center gap-1">
+                     <button onClick={() => assignTodoToDate(todo.id, format(new Date(), 'yyyy-MM-dd'))} className="text-[10px] flex items-center gap-1 text-[#446172] opacity-100 md:opacity-0 group-hover:opacity-100 hover:bg-[#446172]/10 px-1.5 py-0.5 rounded transition-all">
+                       <CalendarIcon className="w-3 h-3" /> Today
+                     </button>
+                     <button onClick={() => deleteTodo(todo.id)} className="text-[10px] flex items-center gap-1 text-[#a65d5d] opacity-100 md:opacity-0 group-hover:opacity-100 hover:bg-[#a65d5d]/10 px-1.5 py-0.5 rounded transition-all">
+                       <Trash2 className="w-3 h-3" /> Delete
+                     </button>
+                   </div>
                  </div>
                </div>
             </div>
@@ -310,6 +320,13 @@ export function RightPanel({ isOpen, setIsOpen, messages, todos, activeTab, setA
                         title="Move back to flexible list"
                       >
                         <Undo2 className="w-3 h-3" /> Flexible
+                      </button>
+                      <button
+                        onClick={() => deleteTodo(todo.id)}
+                        className="text-[10px] flex items-center gap-1 text-[#a65d5d] hover:bg-[#a65d5d]/10 px-1.5 py-0.5 rounded transition-colors"
+                        title="Delete task"
+                      >
+                        <Trash2 className="w-3 h-3" /> Delete
                       </button>
                     </div>
                   </div>

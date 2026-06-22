@@ -1,13 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Calendar } from './components/Calendar';
 import { RightPanel } from './components/RightPanel';
 import { TopNav } from './components/TopNav';
 import { AuthScreen } from './components/AuthScreen';
 import { CoupleSetup } from './components/CoupleSetup';
+import { SettingsModal } from './components/SettingsModal';
 import { useCoupleSyncStore } from './lib/useCoupleSyncStore';
 import { useSupabaseSession } from './lib/useSupabaseSession';
-import { CalendarEvent, Message, UserNames, ViewMode } from './types';
+import { CalendarEvent, Message, ViewMode } from './types';
 
 export default function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('Month');
@@ -34,8 +35,13 @@ export default function App() {
     return () => mobileQuery.removeEventListener('change', closePanelsOnMobile);
   }, []);
   const [rightTab, setRightTab] = useState<'inbox' | 'todos'>('inbox');
-  const [editingNames, setEditingNames] = useState(false);
-  const [nameDraft, setNameDraft] = useState<UserNames>(store.userNames);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => (
+    typeof window === 'undefined' ? 'light' : (localStorage.getItem('couplesync-theme') as 'light' | 'dark') || 'light'
+  ));
+  const [undoMessage, setUndoMessage] = useState<string | null>(null);
+  const undoActionRef = useRef<(() => void) | null>(null);
+  const undoTimerRef = useRef<number | null>(null);
   const [messageToSchedule, setMessageToSchedule] = useState<Message | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -58,14 +64,18 @@ export default function App() {
   });
   const currentUserRole = store.workspace?.role || 'him';
 
-  const openNameEditor = () => {
-    setNameDraft(store.userNames);
-    setEditingNames(true);
-  };
+  useEffect(() => {
+    localStorage.setItem('couplesync-theme', theme);
+  }, [theme]);
 
-  const saveNames = () => {
-    void store.changeNames(nameDraft);
-    setEditingNames(false);
+  const showUndo = (message: string, undo: () => void) => {
+    if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
+    undoActionRef.current = undo;
+    setUndoMessage(message);
+    undoTimerRef.current = window.setTimeout(() => {
+      undoActionRef.current = null;
+      setUndoMessage(null);
+    }, 6000);
   };
 
   const openScheduleDialog = (message: Message) => {
@@ -142,6 +152,30 @@ export default function App() {
     }
     setCreatingEvent(false);
     setEditingEventId(null);
+  };
+
+  const deleteEditingEvent = () => {
+    if (!editingEventId) return;
+    const event = store.events.find(item => item.id === editingEventId);
+    if (!event) return;
+    void store.deleteCalendarEvent(editingEventId);
+    setCreatingEvent(false);
+    setEditingEventId(null);
+    showUndo('Event deleted', () => void store.restoreCalendarEvent(event));
+  };
+
+  const deleteTodoWithUndo = (todoId: string) => {
+    const todo = store.todos.find(item => item.id === todoId);
+    if (!todo) return;
+    void store.deleteTodo(todoId);
+    showUndo('Task deleted', () => void store.restoreTodo(todo));
+  };
+
+  const deleteMessageWithUndo = (messageId: string) => {
+    const message = store.messages.find(item => item.id === messageId);
+    if (!message) return;
+    void store.deleteInboxMessage(messageId);
+    showUndo('Message deleted', () => void store.restoreInboxMessage(message));
   };
 
   const localDateKey = (date = new Date()) => {
@@ -251,13 +285,13 @@ export default function App() {
   }
 
   return (
-    <div className="h-screen w-screen bg-[#f7f9fb] flex flex-col font-sans overflow-hidden">
+    <div data-theme={theme} className="h-screen w-screen bg-[#f7f9fb] flex flex-col font-sans overflow-hidden">
       
       <TopNav 
         viewMode={viewMode} 
         setViewMode={setViewMode} 
         userNames={store.userNames} 
-        changeNames={openNameEditor}
+        openSettings={() => setSettingsOpen(true)}
         onOpenSearch={() => {
           setSearchOpen(true);
           setNotificationsOpen(false);
@@ -342,6 +376,7 @@ export default function App() {
           currentUserRole={currentUserRole}
           addNewTodo={store.addNewTodo}
           toggleTodo={store.toggleTodo}
+          deleteTodo={deleteTodoWithUndo}
           workspace={store.workspace}
           isBackendConfigured={auth.isConfigured}
           calendarConnections={store.calendarConnections}
@@ -388,40 +423,26 @@ export default function App() {
           unassignTodoFromDate={store.unassignTodoFromDate}
           replyToMessage={store.replyToMessage}
           toggleTodo={store.toggleTodo}
+          deleteTodo={deleteTodoWithUndo}
+          deleteInboxMessage={deleteMessageWithUndo}
           userNames={store.userNames}
         />
 
       </div>
 
-      {editingNames && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#191c1e]/20 backdrop-blur-sm p-4">
-          <div className="w-full max-w-sm rounded-2xl border border-white/70 bg-white shadow-lg p-5">
-            <h2 className="text-xl font-display font-semibold text-[#191c1e] mb-1">Edit Names</h2>
-            <p className="text-xs text-[#72787c] mb-5">These names are used across schedules, tasks, and inbox messages.</p>
-            <div className="space-y-3">
-              <label className="block">
-                <span className="block text-[11px] font-semibold tracking-widest text-[#a0a5a9] uppercase mb-1.5">His Name</span>
-                <input
-                  value={nameDraft.him}
-                  onChange={event => setNameDraft(previous => ({ ...previous, him: event.target.value }))}
-                  className="w-full h-10 rounded-lg border border-[#eceef0] bg-[#fbfcfd] px-3 text-sm outline-none focus:border-[#446172]"
-                />
-              </label>
-              <label className="block">
-                <span className="block text-[11px] font-semibold tracking-widest text-[#a0a5a9] uppercase mb-1.5">Her Name</span>
-                <input
-                  value={nameDraft.her}
-                  onChange={event => setNameDraft(previous => ({ ...previous, her: event.target.value }))}
-                  className="w-full h-10 rounded-lg border border-[#eceef0] bg-[#fbfcfd] px-3 text-sm outline-none focus:border-[#446172]"
-                />
-              </label>
-            </div>
-            <div className="flex justify-end gap-2 mt-5">
-              <button onClick={() => setEditingNames(false)} className="h-9 rounded-lg px-3 text-sm font-medium text-[#72787c] hover:bg-black/5 transition-colors">Cancel</button>
-              <button onClick={saveNames} className="h-9 rounded-lg bg-[#446172] px-4 text-sm font-semibold text-white hover:bg-[#446172]/90 transition-colors">Save</button>
-            </div>
-          </div>
-        </div>
+      {settingsOpen && (
+        <SettingsModal
+          userNames={store.userNames}
+          workspace={store.workspace}
+          layers={store.layers}
+          habitDefinitions={store.habitDefinitions}
+          theme={theme}
+          setTheme={setTheme}
+          changeNames={names => void store.changeNames(names)}
+          updateLayerColor={store.updateLayerColor}
+          updateHabitDefinition={store.updateHabitDefinition}
+          onClose={() => setSettingsOpen(false)}
+        />
       )}
 
       {messageToSchedule && (
@@ -471,6 +492,7 @@ export default function App() {
                     <option value="him">{store.userNames.him}</option>
                     <option value="her">{store.userNames.her}</option>
                   </select>
+                  <span className="mt-1 block text-[10px] text-[#a0a5a9]">Controls default schedule color and filtering when no layer is selected.</span>
                 </label>
                 <label className="block">
                   <span className="block text-[11px] font-semibold tracking-widest text-[#a0a5a9] uppercase mb-1.5">Layer</span>
@@ -613,6 +635,7 @@ export default function App() {
                     <option value="him">{store.userNames.him}</option>
                     <option value="her">{store.userNames.her}</option>
                   </select>
+                  <span className="mt-1 block text-[10px] text-[#a0a5a9]">Controls default schedule color and filtering when no layer is selected.</span>
                 </label>
                 <label className="block">
                   <span className="block text-[11px] font-semibold tracking-widest text-[#a0a5a9] uppercase mb-1.5">Layer</span>
@@ -631,14 +654,36 @@ export default function App() {
                 </label>
               </div>
             </div>
-            <div className="flex justify-end gap-2 mt-5">
+            <div className="flex justify-between gap-2 mt-5">
+              {editingEventId ? (
+                <button onClick={deleteEditingEvent} className="h-9 rounded-lg px-3 text-sm font-semibold text-[#a65d5d] hover:bg-[#a65d5d]/10 transition-colors">Delete</button>
+              ) : <span />}
+              <div className="flex justify-end gap-2">
               <button onClick={() => {
                 setCreatingEvent(false);
                 setEditingEventId(null);
               }} className="h-9 rounded-lg px-3 text-sm font-medium text-[#72787c] hover:bg-black/5 transition-colors">Cancel</button>
               <button onClick={saveEvent} className="h-9 rounded-lg bg-[#446172] px-4 text-sm font-semibold text-white hover:bg-[#446172]/90 transition-colors">{editingEventId ? 'Save Event' : 'Create Event'}</button>
+              </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {undoMessage && (
+        <div className="fixed bottom-5 left-1/2 z-50 flex w-[min(360px,calc(100vw-2rem))] -translate-x-1/2 items-center justify-between gap-3 rounded-2xl border border-white/60 bg-[#191c1e] px-4 py-3 text-sm text-white shadow-lg">
+          <span>{undoMessage}</span>
+          <button
+            onClick={() => {
+              undoActionRef.current?.();
+              undoActionRef.current = null;
+              setUndoMessage(null);
+              if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
+            }}
+            className="rounded-lg px-2 py-1 text-xs font-semibold text-[#c8e6d9] hover:bg-white/10 transition-colors"
+          >
+            Undo
+          </button>
         </div>
       )}
     </div>
