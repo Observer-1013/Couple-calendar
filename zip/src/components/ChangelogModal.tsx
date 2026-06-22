@@ -13,15 +13,15 @@ export function ChangelogModal({ onClose }: ChangelogModalProps) {
           <div className="min-w-0">
             <div className="mb-1 flex items-center gap-2 text-[#446172]">
               <History className="h-4 w-4" />
-              <span className="text-[10px] font-semibold uppercase tracking-widest">Update Log</span>
+              <span className="text-[10px] font-semibold uppercase tracking-widest">更新日志</span>
             </div>
-            <h2 className="text-xl font-display font-semibold text-[#191c1e]">What's New</h2>
-            <p className="mt-0.5 text-xs text-[#72787c]">A quick record of recent CoupleSync changes.</p>
+            <h2 className="text-xl font-display font-semibold text-[#191c1e]">最近更新</h2>
+            <p className="mt-0.5 text-xs text-[#72787c]">记录 CoupleSync 最近完成的改动。</p>
           </div>
           <button
             onClick={onClose}
             className="rounded-lg p-1.5 text-[#72787c] hover:bg-black/5 transition-colors"
-            title="Close update log"
+            title="关闭更新日志"
           >
             <X className="h-4 w-4" />
           </button>
@@ -53,7 +53,7 @@ export function ChangelogModal({ onClose }: ChangelogModalProps) {
 
         <div className="sticky bottom-0 flex justify-end border-t border-[#eceef0] bg-white/95 px-5 py-4 backdrop-blur-md">
           <button onClick={onClose} className="h-9 rounded-lg bg-[#446172] px-4 text-sm font-semibold text-white hover:bg-[#446172]/90 transition-colors">
-            Done
+            知道了
           </button>
         </div>
       </div>
