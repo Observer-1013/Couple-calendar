@@ -8,6 +8,8 @@ The app has not yet been verified against a real Supabase project because `.env.
 
 2026-06-21 update: Supabase is now configured locally. `npm run doctor` and `npm run verify:supabase` pass against the configured project. The user reports GitHub OAuth login, role display, invite code, drag-to-calendar todos, and database persistence are working in the local UI. The remaining live-app verification gap is two authenticated browser sessions for Realtime behavior.
 
+2026-06-22 update: live Realtime behavior has now been verified successfully. Vercel deployment is connected through GitHub, the production bundle matched the local build after commit `fe34b8e`, and the Supabase delete-policy migration was run in SQL Editor. The active remaining integrations are Google Calendar and Apple/iCloud Calendar. Delete/undo currently covers editable events, todos, and inbox messages; custom layer deletion, single habit-log deletion, hard habit-definition deletion, and deeper Year view detail are intentionally deferred for now. Native browser drag/drop is acceptable for the current phase, so no dedicated DnD library work is planned right now.
+
 ## Working Rules
 
 - Keep minimal diffs: preserve the generated UI and avoid broad refactors.
@@ -71,6 +73,9 @@ Deliverables:
 - Refresh or patch local state when the other partner changes data.
 - Keep optimistic UI updates for the person making the change.
 
+Current status:
+- 2026-06-22: live two-side Realtime verification succeeded.
+
 ## Milestone 5: Product Completeness
 
 Deliverables:
@@ -111,6 +116,10 @@ Current local status:
 - Left-sidebar Google Calendar status controls now show connection/sync state from `calendar_connections`.
 - Browser smoke verification has confirmed the local demo app renders, the To-Do Box can add a task, and that task can be scheduled to today's calendar cell.
 - The app shell now uses the `CoupleSync` page title and a local SVG favicon, so smoke runs are not polluted by favicon 404 errors.
+- Settings now centralizes names, invite code, light/dark theme, layer colors, personal schedule colors, and existing habit name/color/active-state edits.
+- Existing events, personal/shared todos, and inbox messages support delete with a short Undo window.
+- Custom layer deletion, single habit-log deletion, hard habit-definition deletion, and richer Year view detail are intentionally deferred for now.
+- Native browser drag/drop remains the chosen implementation for this phase; a dedicated drag/drop library is not currently planned.
 
 ## Milestone 6: Deployment
 
@@ -124,6 +133,8 @@ Current local status:
 - `docs/VERCEL_DEPLOYMENT.md` records the Vercel root directory, build command, output directory, environment variables, and Supabase Auth URL updates.
 - `npm run vercel:settings` prints the project settings and post-deploy Supabase Auth URL reminders.
 - `npm run doctor` checks that the Vercel deployment guide, config, and helper exist.
+- 2026-06-22: production is deployed through the GitHub-connected Vercel project, and `npm run verify:vercel -- --production-url https://couple-calendar-sigma.vercel.app` confirmed the production asset bundle matched the local build after commit `fe34b8e`.
+- 2026-06-22: the Supabase delete-policy migration `20260622113000_delete_policy_readiness.sql` was run in SQL Editor, enabling production delete operations under RLS.
 
 User-owned setup needed:
 - Log in to Vercel and connect the repository.
@@ -156,3 +167,5 @@ Use `docs/SUPABASE_SETUP.md` to create the real Supabase project, run `npm run s
 Run `npm run doctor` before and after the setup. Right now it is expected to warn that `.env.local`, `VITE_SUPABASE_URL`, and `VITE_SUPABASE_ANON_KEY` are missing.
 
 2026-06-21 update: the Supabase setup part above is complete locally. The next concrete step is two-session Realtime verification, then Vercel deployment with browser env vars, then Google Calendar server env and OAuth verification.
+
+2026-06-22 update: Realtime verification, Vercel deployment, production freshness verification, and the delete-policy SQL migration are complete. Next active work is external calendar integration: first Google Calendar credentials/server env/real sync verification, then Apple/iCloud Calendar as a separate later CalDAV-style integration.
