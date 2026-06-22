@@ -23,7 +23,7 @@ interface RightPanelProps {
   unassignTodoFromDate: (todoId: string) => void;
   replyToMessage: (messageId: string, content: string) => void;
   toggleTodo: (todoId: string) => void;
-  updateTodoText: (todoId: string, text: string) => void;
+  updateTodoText: (todoId: string, text: string, assignee: User | 'both') => void;
   deleteTodo: (todoId: string) => void;
   deleteInboxMessage: (messageId: string) => void;
   currentUserRole: User;
@@ -86,6 +86,7 @@ export function RightPanel({ isOpen, setIsOpen, messages, todos, habits, activeT
   const [todoAssignee, setTodoAssignee] = useState<User | 'both'>('both');
   const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
   const [editingTodoText, setEditingTodoText] = useState('');
+  const [editingTodoAssignee, setEditingTodoAssignee] = useState<User | 'both'>('both');
   const [cityDraft, setCityDraft] = useState('');
   const [locationError, setLocationError] = useState<string | null>(null);
   const [locationSaving, setLocationSaving] = useState<'city' | 'browser' | null>(null);
@@ -232,16 +233,18 @@ export function RightPanel({ isOpen, setIsOpen, messages, todos, habits, activeT
   const startTodoEdit = (todo: ToDo) => {
     setEditingTodoId(todo.id);
     setEditingTodoText(todo.text);
+    setEditingTodoAssignee(todo.assignee === 'unassigned' ? 'both' : todo.assignee);
   };
 
   const cancelTodoEdit = () => {
     setEditingTodoId(null);
     setEditingTodoText('');
+    setEditingTodoAssignee('both');
   };
 
   const saveTodoEdit = () => {
     if (!editingTodoId || !editingTodoText.trim()) return;
-    updateTodoText(editingTodoId, editingTodoText);
+    updateTodoText(editingTodoId, editingTodoText, editingTodoAssignee);
     cancelTodoEdit();
   };
 
@@ -596,16 +599,27 @@ export function RightPanel({ isOpen, setIsOpen, messages, todos, habits, activeT
                </div>
                <div className="flex-1 min-w-0">
                  {editingTodoId === todo.id ? (
-                   <input
-                     value={editingTodoText}
-                     onChange={event => setEditingTodoText(event.target.value)}
-                     onKeyDown={event => {
-                       if (event.key === 'Enter') saveTodoEdit();
-                       if (event.key === 'Escape') cancelTodoEdit();
-                     }}
-                     className="h-8 w-full rounded-md border border-[#eceef0] bg-[#fbfcfd] px-2 text-sm outline-none focus:border-[#446172]"
-                     autoFocus
-                   />
+                   <div className="space-y-2">
+                     <input
+                       value={editingTodoText}
+                       onChange={event => setEditingTodoText(event.target.value)}
+                       onKeyDown={event => {
+                         if (event.key === 'Enter') saveTodoEdit();
+                         if (event.key === 'Escape') cancelTodoEdit();
+                       }}
+                       className="h-8 w-full rounded-md border border-[#eceef0] bg-[#fbfcfd] px-2 text-sm outline-none focus:border-[#446172]"
+                       autoFocus
+                     />
+                     <select
+                       value={editingTodoAssignee}
+                       onChange={event => setEditingTodoAssignee(event.target.value as User | 'both')}
+                       className="h-8 w-full rounded-md border border-[#eceef0] bg-[#fbfcfd] px-2 text-xs text-[#42474c] outline-none focus:border-[#446172]"
+                     >
+                       <option value="both">Shared</option>
+                       <option value="him">{userNames.him}</option>
+                       <option value="her">{userNames.her}</option>
+                     </select>
+                   </div>
                  ) : (
                    <p className={cn("text-sm", todo.completed && "line-through text-[#a0a5a9]")}>{todo.text}</p>
                  )}
@@ -668,16 +682,27 @@ export function RightPanel({ isOpen, setIsOpen, messages, todos, habits, activeT
                 </div>
                 <div className="flex-1 min-w-0">
                   {editingTodoId === todo.id ? (
-                    <input
-                      value={editingTodoText}
-                      onChange={event => setEditingTodoText(event.target.value)}
-                      onKeyDown={event => {
-                        if (event.key === 'Enter') saveTodoEdit();
-                        if (event.key === 'Escape') cancelTodoEdit();
-                      }}
-                      className="h-8 w-full rounded-md border border-[#eceef0] bg-[#fbfcfd] px-2 text-sm outline-none focus:border-[#446172]"
-                      autoFocus
-                    />
+                    <div className="space-y-2">
+                      <input
+                        value={editingTodoText}
+                        onChange={event => setEditingTodoText(event.target.value)}
+                        onKeyDown={event => {
+                          if (event.key === 'Enter') saveTodoEdit();
+                          if (event.key === 'Escape') cancelTodoEdit();
+                        }}
+                        className="h-8 w-full rounded-md border border-[#eceef0] bg-[#fbfcfd] px-2 text-sm outline-none focus:border-[#446172]"
+                        autoFocus
+                      />
+                      <select
+                        value={editingTodoAssignee}
+                        onChange={event => setEditingTodoAssignee(event.target.value as User | 'both')}
+                        className="h-8 w-full rounded-md border border-[#eceef0] bg-[#fbfcfd] px-2 text-xs text-[#42474c] outline-none focus:border-[#446172]"
+                      >
+                        <option value="both">Shared</option>
+                        <option value="him">{userNames.him}</option>
+                        <option value="her">{userNames.her}</option>
+                      </select>
+                    </div>
                   ) : (
                     <p className={cn("text-sm", todo.completed && "line-through text-[#a0a5a9]")}>{todo.text}</p>
                   )}

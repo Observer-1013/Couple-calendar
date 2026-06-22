@@ -683,19 +683,19 @@ export function useCoupleSyncStore(session: Session | null) {
     }
   }, [dbMode]);
 
-  const updateTodoText = useCallback(async (id: string, text: string) => {
+  const updateTodoText = useCallback(async (id: string, text: string, assignee: User | 'both') => {
     const taskText = text.trim();
     if (!taskText) return;
 
     const todo = todos.find(item => item.id === id);
-    if (!todo || todo.text === taskText) return;
+    if (!todo || (todo.text === taskText && todo.assignee === assignee)) return;
 
-    setTodos(previous => previous.map(item => item.id === id ? { ...item, text: taskText } : item));
+    setTodos(previous => previous.map(item => item.id === id ? { ...item, text: taskText, assignee } : item));
 
     if (dbMode && supabase) {
       const { error: updateError } = await supabase
         .from('todos')
-        .update({ text: taskText })
+        .update({ text: taskText, assignee_role: assignee })
         .eq('id', id);
 
       if (updateError) {

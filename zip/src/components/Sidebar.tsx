@@ -19,7 +19,7 @@ interface SidebarProps {
   currentUserRole: UserRole;
   addNewTodo: (assignee: UserRole, text: string) => void;
   toggleTodo: (todoId: string) => void;
-  updateTodoText: (todoId: string, text: string) => void;
+  updateTodoText: (todoId: string, text: string, assignee: UserRole | 'both') => void;
   deleteTodo: (todoId: string) => void;
   workspace: CoupleWorkspace | null;
   isBackendConfigured: boolean;
@@ -41,6 +41,7 @@ export function Sidebar({ layers, activeLayers, toggleLayer, toggleAll, isOpen, 
   const [personalTaskText, setPersonalTaskText] = useState('');
   const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
   const [editingTodoText, setEditingTodoText] = useState('');
+  const [editingTodoAssignee, setEditingTodoAssignee] = useState<UserRole | 'both'>('both');
   const [pendingSection, setPendingSection] = useState<SidebarSection | null>(null);
   const profileSectionRef = useRef<HTMLDivElement | null>(null);
   const calendarSectionRef = useRef<HTMLDivElement | null>(null);
@@ -88,16 +89,18 @@ export function Sidebar({ layers, activeLayers, toggleLayer, toggleAll, isOpen, 
   const startTodoEdit = (todo: ToDo) => {
     setEditingTodoId(todo.id);
     setEditingTodoText(todo.text);
+    setEditingTodoAssignee(todo.assignee === 'unassigned' ? 'both' : todo.assignee);
   };
 
   const cancelTodoEdit = () => {
     setEditingTodoId(null);
     setEditingTodoText('');
+    setEditingTodoAssignee('both');
   };
 
   const saveTodoEdit = () => {
     if (!editingTodoId || !editingTodoText.trim()) return;
-    updateTodoText(editingTodoId, editingTodoText);
+    updateTodoText(editingTodoId, editingTodoText, editingTodoAssignee);
     cancelTodoEdit();
   };
 
@@ -276,6 +279,15 @@ export function Sidebar({ layers, activeLayers, toggleLayer, toggleAll, isOpen, 
                       className="h-8 w-full rounded-md border border-[#eceef0] bg-[#fbfcfd] px-2 text-xs outline-none focus:border-[#446172]"
                       autoFocus
                     />
+                    <select
+                      value={editingTodoAssignee}
+                      onChange={event => setEditingTodoAssignee(event.target.value as UserRole | 'both')}
+                      className="h-8 w-full rounded-md border border-[#eceef0] bg-[#fbfcfd] px-2 text-xs text-[#42474c] outline-none focus:border-[#446172]"
+                    >
+                      <option value="both">Shared</option>
+                      <option value="him">{userNames.him}</option>
+                      <option value="her">{userNames.her}</option>
+                    </select>
                     <div className="flex justify-end gap-1">
                       <button onClick={cancelTodoEdit} className="rounded-md p-1 text-[#72787c] hover:bg-black/5" title="Cancel edit">
                         <X className="w-3.5 h-3.5" />

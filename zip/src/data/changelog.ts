@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    id: '2026-06-23-editable-todo-assignee',
+    date: '2026-06-23',
+    title: '待办归属现在可以修改',
+    summary: '编辑待办时不仅可以改文字，也可以把归属改成双方共享或某一个人。',
+    items: [
+      '左侧个人待办编辑框新增归属选择。',
+      '右侧 Flexible 和 Scheduled 待办编辑框也支持切换归属。',
+      '修改会写回 Supabase 的 assignee_role，并继续通过实时同步刷新到另一端。',
+    ],
+  },
+  {
     id: '2026-06-23-inbox-mood-category',
     date: '2026-06-23',
     title: '信箱新增心情记录类别',
