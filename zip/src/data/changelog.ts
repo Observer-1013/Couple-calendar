@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    id: '2026-06-22-editable-todos',
+    date: '2026-06-22',
+    title: '待办现在可以直接编辑',
+    summary: '写错字或想调整措辞时，不需要删除重建待办了。',
+    items: [
+      '左侧个人待办新增编辑入口，可以保存或取消修改。',
+      '右侧 Flexible 和 Scheduled 待办都支持直接编辑文字。',
+      '编辑后的待办会写回 Supabase，并通过现有实时同步刷新到另一端。',
+    ],
+  },
+  {
     id: '2026-06-22-personal-status-weather',
     date: '2026-06-22',
     title: '新增个人状况和天气位置',

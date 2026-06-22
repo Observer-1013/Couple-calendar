@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useEffect, useRef } from 'react';
 import { CalendarConnection, CoupleWorkspace, HabitDefinition, Layer, ToDo, User as UserRole, UserNames } from '../types';
 import { cn } from '../lib/utils';
-import { User, Heart, CheckCircle2, Plus, MailOpen, Archive, Menu, PanelLeftClose, Wifi, WifiOff, CalendarSync, ExternalLink, RefreshCw, Trash2 } from 'lucide-react';
+import { User, Heart, Check, CheckCircle2, Plus, MailOpen, Archive, Menu, PanelLeftClose, Pencil, Wifi, WifiOff, CalendarSync, ExternalLink, RefreshCw, Trash2, X } from 'lucide-react';
 
 interface SidebarProps {
   layers: Layer[];
@@ -19,6 +19,7 @@ interface SidebarProps {
   currentUserRole: UserRole;
   addNewTodo: (assignee: UserRole, text: string) => void;
   toggleTodo: (todoId: string) => void;
+  updateTodoText: (todoId: string, text: string) => void;
   deleteTodo: (todoId: string) => void;
   workspace: CoupleWorkspace | null;
   isBackendConfigured: boolean;
@@ -30,7 +31,7 @@ interface SidebarProps {
 
 type SidebarSection = 'profile' | 'calendar' | 'layers' | 'tasks' | 'habits';
 
-export function Sidebar({ layers, activeLayers, toggleLayer, toggleAll, isOpen, setIsOpen, userNames, createCustomLayer, habitDefinitions, createHabitDefinition, todos, currentUserRole, addNewTodo, toggleTodo, deleteTodo, workspace, isBackendConfigured, calendarConnections, calendarActionLoading, connectGoogleCalendar, syncGoogleCalendar }: SidebarProps) {
+export function Sidebar({ layers, activeLayers, toggleLayer, toggleAll, isOpen, setIsOpen, userNames, createCustomLayer, habitDefinitions, createHabitDefinition, todos, currentUserRole, addNewTodo, toggleTodo, updateTodoText, deleteTodo, workspace, isBackendConfigured, calendarConnections, calendarActionLoading, connectGoogleCalendar, syncGoogleCalendar }: SidebarProps) {
   const isAllVisible = activeLayers.length === layers.length;
   const [isCreating, setIsCreating] = useState(false);
   const [layerName, setLayerName] = useState('');
@@ -38,6 +39,8 @@ export function Sidebar({ layers, activeLayers, toggleLayer, toggleAll, isOpen, 
   const [habitName, setHabitName] = useState('');
   const [habitColor, setHabitColor] = useState('#4ade80');
   const [personalTaskText, setPersonalTaskText] = useState('');
+  const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
+  const [editingTodoText, setEditingTodoText] = useState('');
   const [pendingSection, setPendingSection] = useState<SidebarSection | null>(null);
   const profileSectionRef = useRef<HTMLDivElement | null>(null);
   const calendarSectionRef = useRef<HTMLDivElement | null>(null);
@@ -80,6 +83,22 @@ export function Sidebar({ layers, activeLayers, toggleLayer, toggleAll, isOpen, 
   const openSection = (section: SidebarSection) => {
     setPendingSection(section);
     setIsOpen(true);
+  };
+
+  const startTodoEdit = (todo: ToDo) => {
+    setEditingTodoId(todo.id);
+    setEditingTodoText(todo.text);
+  };
+
+  const cancelTodoEdit = () => {
+    setEditingTodoId(null);
+    setEditingTodoText('');
+  };
+
+  const saveTodoEdit = () => {
+    if (!editingTodoId || !editingTodoText.trim()) return;
+    updateTodoText(editingTodoId, editingTodoText);
+    cancelTodoEdit();
   };
 
   if (!isOpen) {
@@ -245,22 +264,54 @@ export function Sidebar({ layers, activeLayers, toggleLayer, toggleAll, isOpen, 
                 key={todo.id}
                 className="group w-full rounded-lg bg-white/60 px-2.5 py-2 flex items-start gap-2 hover:bg-white transition-colors"
               >
-                <button onClick={() => toggleTodo(todo.id)} className="min-w-0 flex flex-1 items-start gap-2 text-left">
-                  <span className={cn(
-                    "w-3 h-3 rounded border flex-shrink-0 mt-0.5",
-                    todo.completed ? "bg-[#446172] border-[#446172]" : "border-[#a0a5a9] bg-white",
-                  )} />
-                  <span className={cn("min-w-0 flex-1 text-xs text-[#42474c]", todo.completed && "line-through text-[#a0a5a9]")}>
-                    {todo.text}
-                  </span>
-                </button>
-                <button
-                  onClick={() => deleteTodo(todo.id)}
-                  className="rounded-md p-1 text-[#a0a5a9] opacity-100 md:opacity-0 transition-opacity hover:bg-[#a65d5d]/10 hover:text-[#a65d5d] md:group-hover:opacity-100"
-                  title="Delete task"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                {editingTodoId === todo.id ? (
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <input
+                      value={editingTodoText}
+                      onChange={event => setEditingTodoText(event.target.value)}
+                      onKeyDown={event => {
+                        if (event.key === 'Enter') saveTodoEdit();
+                        if (event.key === 'Escape') cancelTodoEdit();
+                      }}
+                      className="h-8 w-full rounded-md border border-[#eceef0] bg-[#fbfcfd] px-2 text-xs outline-none focus:border-[#446172]"
+                      autoFocus
+                    />
+                    <div className="flex justify-end gap-1">
+                      <button onClick={cancelTodoEdit} className="rounded-md p-1 text-[#72787c] hover:bg-black/5" title="Cancel edit">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={saveTodoEdit} className="rounded-md p-1 text-[#446172] hover:bg-[#446172]/10" title="Save edit">
+                        <Check className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <button onClick={() => toggleTodo(todo.id)} className="min-w-0 flex flex-1 items-start gap-2 text-left">
+                      <span className={cn(
+                        "w-3 h-3 rounded border flex-shrink-0 mt-0.5",
+                        todo.completed ? "bg-[#446172] border-[#446172]" : "border-[#a0a5a9] bg-white",
+                      )} />
+                      <span className={cn("min-w-0 flex-1 text-xs text-[#42474c]", todo.completed && "line-through text-[#a0a5a9]")}>
+                        {todo.text}
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => startTodoEdit(todo)}
+                      className="rounded-md p-1 text-[#a0a5a9] opacity-100 md:opacity-0 transition-opacity hover:bg-[#446172]/10 hover:text-[#446172] md:group-hover:opacity-100"
+                      title="Edit task"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => deleteTodo(todo.id)}
+                      className="rounded-md p-1 text-[#a0a5a9] opacity-100 md:opacity-0 transition-opacity hover:bg-[#a65d5d]/10 hover:text-[#a65d5d] md:group-hover:opacity-100"
+                      title="Delete task"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </>
+                )}
               </div>
             ))}
             {personalTodos.length === 0 && (

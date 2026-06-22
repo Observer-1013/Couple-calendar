@@ -683,6 +683,28 @@ export function useCoupleSyncStore(session: Session | null) {
     }
   }, [dbMode]);
 
+  const updateTodoText = useCallback(async (id: string, text: string) => {
+    const taskText = text.trim();
+    if (!taskText) return;
+
+    const todo = todos.find(item => item.id === id);
+    if (!todo || todo.text === taskText) return;
+
+    setTodos(previous => previous.map(item => item.id === id ? { ...item, text: taskText } : item));
+
+    if (dbMode && supabase) {
+      const { error: updateError } = await supabase
+        .from('todos')
+        .update({ text: taskText })
+        .eq('id', id);
+
+      if (updateError) {
+        setError(updateError.message);
+        reloadRef.current();
+      }
+    }
+  }, [dbMode, todos]);
+
   const addEventFromMessage = useCallback(async (msg: Message, dateInput: string, startTime = '09:00', endTime = '10:00', owner: User | 'both' = 'both', layerId?: string) => {
     const layer = layers.find(item => item.id === layerId || item.databaseId === layerId);
 
@@ -1275,6 +1297,7 @@ export function useCoupleSyncStore(session: Session | null) {
     updateCalendarEvent,
     updateHabitDefinition,
     updateLayerColor,
+    updateTodoText,
     updateWeatherLocation,
     userNames,
     workspace,

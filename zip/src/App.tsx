@@ -399,6 +399,7 @@ export default function App() {
           currentUserRole={currentUserRole}
           addNewTodo={store.addNewTodo}
           toggleTodo={store.toggleTodo}
+          updateTodoText={store.updateTodoText}
           deleteTodo={deleteTodoWithUndo}
           workspace={store.workspace}
           isBackendConfigured={auth.isConfigured}
@@ -447,6 +448,7 @@ export default function App() {
           unassignTodoFromDate={store.unassignTodoFromDate}
           replyToMessage={store.replyToMessage}
           toggleTodo={store.toggleTodo}
+          updateTodoText={store.updateTodoText}
           deleteTodo={deleteTodoWithUndo}
           deleteInboxMessage={deleteMessageWithUndo}
           currentUserRole={currentUserRole}

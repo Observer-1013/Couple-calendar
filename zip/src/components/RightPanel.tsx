@@ -3,8 +3,8 @@ import { useEffect } from 'react';
 import { HabitRecord, Message, MessageCategory, RightPanelTab, ToDo, User, UserNames, WeatherLocation } from '../types';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
-import { PanelRightClose, MessageSquareShare, Reply, CalendarPlus, Plus, Calendar as CalendarIcon, CheckSquare, Send, Undo2, Trash2 } from 'lucide-react';
-import { Activity, LocateFixed, MapPin, RefreshCw } from 'lucide-react';
+import { PanelRightClose, MessageSquareShare, Reply, CalendarPlus, Plus, Calendar as CalendarIcon, Check, CheckSquare, Send, Undo2, Trash2, X } from 'lucide-react';
+import { Activity, LocateFixed, MapPin, Pencil, RefreshCw } from 'lucide-react';
 import { setCalendarDragData } from '../lib/calendarDrag';
 import { describeWeatherCode, fetchWeatherForecast, geocodeCity, WeatherForecast } from '../lib/weather';
 
@@ -23,6 +23,7 @@ interface RightPanelProps {
   unassignTodoFromDate: (todoId: string) => void;
   replyToMessage: (messageId: string, content: string) => void;
   toggleTodo: (todoId: string) => void;
+  updateTodoText: (todoId: string, text: string) => void;
   deleteTodo: (todoId: string) => void;
   deleteInboxMessage: (messageId: string) => void;
   currentUserRole: User;
@@ -64,7 +65,7 @@ function getCurrentPosition(): Promise<GeolocationPosition> {
   });
 }
 
-export function RightPanel({ isOpen, setIsOpen, messages, todos, habits, activeTab, setActiveTab, addEventFromMessage, addInboxMessage, addNewTodo, assignTodoToDate, unassignTodoFromDate, replyToMessage, toggleTodo, deleteTodo, deleteInboxMessage, currentUserRole, isBackendConfigured, profileLocationFieldsReady, profileLocations, updateWeatherLocation, userNames }: RightPanelProps) {
+export function RightPanel({ isOpen, setIsOpen, messages, todos, habits, activeTab, setActiveTab, addEventFromMessage, addInboxMessage, addNewTodo, assignTodoToDate, unassignTodoFromDate, replyToMessage, toggleTodo, updateTodoText, deleteTodo, deleteInboxMessage, currentUserRole, isBackendConfigured, profileLocationFieldsReady, profileLocations, updateWeatherLocation, userNames }: RightPanelProps) {
   const [todoFilter, setTodoFilter] = useState<'all' | 'him' | 'her'>('all');
   const [newMessage, setNewMessage] = useState('');
   const [newCategory, setNewCategory] = useState<MessageCategory>('idea');
@@ -72,6 +73,8 @@ export function RightPanel({ isOpen, setIsOpen, messages, todos, habits, activeT
   const [replyText, setReplyText] = useState('');
   const [todoText, setTodoText] = useState('');
   const [todoAssignee, setTodoAssignee] = useState<User | 'both'>('both');
+  const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
+  const [editingTodoText, setEditingTodoText] = useState('');
   const [cityDraft, setCityDraft] = useState('');
   const [locationError, setLocationError] = useState<string | null>(null);
   const [locationSaving, setLocationSaving] = useState<'city' | 'browser' | null>(null);
@@ -213,6 +216,22 @@ export function RightPanel({ isOpen, setIsOpen, messages, todos, habits, activeT
     if (!todoText.trim()) return;
     addNewTodo(todoAssignee, todoText);
     setTodoText('');
+  };
+
+  const startTodoEdit = (todo: ToDo) => {
+    setEditingTodoId(todo.id);
+    setEditingTodoText(todo.text);
+  };
+
+  const cancelTodoEdit = () => {
+    setEditingTodoId(null);
+    setEditingTodoText('');
+  };
+
+  const saveTodoEdit = () => {
+    if (!editingTodoId || !editingTodoText.trim()) return;
+    updateTodoText(editingTodoId, editingTodoText);
+    cancelTodoEdit();
   };
 
   const matchesTodoFilter = (todo: ToDo) => {
@@ -553,27 +572,56 @@ export function RightPanel({ isOpen, setIsOpen, messages, todos, habits, activeT
             {flexibleTodos.map(todo => (
             <div
               key={todo.id}
-              draggable
+              draggable={editingTodoId !== todo.id}
               onDragStart={event => setCalendarDragData(event, { type: 'todo', id: todo.id })}
-              className="bg-white p-3 rounded-lg shadow-sm border border-[#eceef0] flex items-start gap-2 group cursor-grab active:cursor-grabbing"
+              className={cn("bg-white p-3 rounded-lg shadow-sm border border-[#eceef0] flex items-start gap-2 group", editingTodoId === todo.id ? "cursor-default" : "cursor-grab active:cursor-grabbing")}
             >
                <div className="relative mt-0.5">
                  <input type="checkbox" checked={todo.completed} onChange={() => toggleTodo(todo.id)} className="peer appearance-none w-4 h-4 border border-[#c2c7cc] rounded checked:bg-[#446172] checked:border-[#446172] cursor-pointer" />
                  {todo.completed && <CheckSquare className="w-3 h-3 text-white absolute inset-0 m-auto pointer-events-none" strokeWidth={3} />}
                </div>
                <div className="flex-1 min-w-0">
-                 <p className={cn("text-sm", todo.completed && "line-through text-[#a0a5a9]")}>{todo.text}</p>
+                 {editingTodoId === todo.id ? (
+                   <input
+                     value={editingTodoText}
+                     onChange={event => setEditingTodoText(event.target.value)}
+                     onKeyDown={event => {
+                       if (event.key === 'Enter') saveTodoEdit();
+                       if (event.key === 'Escape') cancelTodoEdit();
+                     }}
+                     className="h-8 w-full rounded-md border border-[#eceef0] bg-[#fbfcfd] px-2 text-sm outline-none focus:border-[#446172]"
+                     autoFocus
+                   />
+                 ) : (
+                   <p className={cn("text-sm", todo.completed && "line-through text-[#a0a5a9]")}>{todo.text}</p>
+                 )}
                  <div className="flex items-center justify-between mt-2">
                    <span className="text-[10px] font-medium text-[#72787c] capitalize px-1.5 py-0.5 bg-black/5 rounded inline-block">
                      {todo.assignee === 'him' ? userNames.him : todo.assignee === 'her' ? userNames.her : 'Shared'}
                    </span>
-                   <div className="flex items-center gap-1">
-                     <button onClick={() => assignTodoToDate(todo.id, format(new Date(), 'yyyy-MM-dd'))} className="text-[10px] flex items-center gap-1 text-[#446172] opacity-100 md:opacity-0 group-hover:opacity-100 hover:bg-[#446172]/10 px-1.5 py-0.5 rounded transition-all">
-                       <CalendarIcon className="w-3 h-3" /> Today
-                     </button>
-                     <button onClick={() => deleteTodo(todo.id)} className="text-[10px] flex items-center gap-1 text-[#a65d5d] opacity-100 md:opacity-0 group-hover:opacity-100 hover:bg-[#a65d5d]/10 px-1.5 py-0.5 rounded transition-all">
-                       <Trash2 className="w-3 h-3" /> Delete
-                     </button>
+                   <div className="flex flex-wrap items-center justify-end gap-1">
+                     {editingTodoId === todo.id ? (
+                       <>
+                         <button onClick={cancelTodoEdit} className="text-[10px] flex items-center gap-1 text-[#72787c] hover:bg-black/5 px-1.5 py-0.5 rounded transition-colors">
+                           <X className="w-3 h-3" /> Cancel
+                         </button>
+                         <button onClick={saveTodoEdit} className="text-[10px] flex items-center gap-1 text-[#446172] hover:bg-[#446172]/10 px-1.5 py-0.5 rounded transition-colors">
+                           <Check className="w-3 h-3" /> Save
+                         </button>
+                       </>
+                     ) : (
+                       <>
+                         <button onClick={() => startTodoEdit(todo)} className="text-[10px] flex items-center gap-1 text-[#72787c] opacity-100 md:opacity-0 group-hover:opacity-100 hover:bg-[#446172]/10 hover:text-[#446172] px-1.5 py-0.5 rounded transition-all">
+                           <Pencil className="w-3 h-3" /> Edit
+                         </button>
+                         <button onClick={() => assignTodoToDate(todo.id, format(new Date(), 'yyyy-MM-dd'))} className="text-[10px] flex items-center gap-1 text-[#446172] opacity-100 md:opacity-0 group-hover:opacity-100 hover:bg-[#446172]/10 px-1.5 py-0.5 rounded transition-all">
+                           <CalendarIcon className="w-3 h-3" /> Today
+                         </button>
+                         <button onClick={() => deleteTodo(todo.id)} className="text-[10px] flex items-center gap-1 text-[#a65d5d] opacity-100 md:opacity-0 group-hover:opacity-100 hover:bg-[#a65d5d]/10 px-1.5 py-0.5 rounded transition-all">
+                           <Trash2 className="w-3 h-3" /> Delete
+                         </button>
+                       </>
+                     )}
                    </div>
                  </div>
                </div>
@@ -596,38 +644,67 @@ export function RightPanel({ isOpen, setIsOpen, messages, todos, habits, activeT
             {scheduledTodos.map(todo => (
               <div
                 key={todo.id}
-                draggable
+                draggable={editingTodoId !== todo.id}
                 onDragStart={event => setCalendarDragData(event, { type: 'todo', id: todo.id })}
-                className="bg-white p-3 rounded-lg shadow-sm border border-[#eceef0] flex items-start gap-2 group cursor-grab active:cursor-grabbing"
+                className={cn("bg-white p-3 rounded-lg shadow-sm border border-[#eceef0] flex items-start gap-2 group", editingTodoId === todo.id ? "cursor-default" : "cursor-grab active:cursor-grabbing")}
               >
                 <div className="relative mt-0.5">
                   <input type="checkbox" checked={todo.completed} onChange={() => toggleTodo(todo.id)} className="peer appearance-none w-4 h-4 border border-[#c2c7cc] rounded checked:bg-[#446172] checked:border-[#446172] cursor-pointer" />
                   {todo.completed && <CheckSquare className="w-3 h-3 text-white absolute inset-0 m-auto pointer-events-none" strokeWidth={3} />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className={cn("text-sm", todo.completed && "line-through text-[#a0a5a9]")}>{todo.text}</p>
+                  {editingTodoId === todo.id ? (
+                    <input
+                      value={editingTodoText}
+                      onChange={event => setEditingTodoText(event.target.value)}
+                      onKeyDown={event => {
+                        if (event.key === 'Enter') saveTodoEdit();
+                        if (event.key === 'Escape') cancelTodoEdit();
+                      }}
+                      className="h-8 w-full rounded-md border border-[#eceef0] bg-[#fbfcfd] px-2 text-sm outline-none focus:border-[#446172]"
+                      autoFocus
+                    />
+                  ) : (
+                    <p className={cn("text-sm", todo.completed && "line-through text-[#a0a5a9]")}>{todo.text}</p>
+                  )}
                   <div className="flex items-center justify-between mt-2">
                     <span className="text-[10px] font-medium text-[#72787c] capitalize px-1.5 py-0.5 bg-black/5 rounded inline-block">
                       {todo.assignee === 'him' ? userNames.him : todo.assignee === 'her' ? userNames.her : 'Shared'}
                     </span>
-                    <div className="flex items-center gap-1">
-                      <span className="text-[10px] flex items-center gap-1 text-[#446172] bg-[#446172]/10 px-1.5 py-0.5 rounded">
-                        <CalendarIcon className="w-3 h-3" /> {todo.date ? formatTodoDate(todo.date) : ''}
-                      </span>
-                      <button
-                        onClick={() => unassignTodoFromDate(todo.id)}
-                        className="text-[10px] flex items-center gap-1 text-[#72787c] hover:text-[#446172] hover:bg-[#446172]/10 px-1.5 py-0.5 rounded transition-colors"
-                        title="Move back to flexible list"
-                      >
-                        <Undo2 className="w-3 h-3" /> Flexible
-                      </button>
-                      <button
-                        onClick={() => deleteTodo(todo.id)}
-                        className="text-[10px] flex items-center gap-1 text-[#a65d5d] hover:bg-[#a65d5d]/10 px-1.5 py-0.5 rounded transition-colors"
-                        title="Delete task"
-                      >
-                        <Trash2 className="w-3 h-3" /> Delete
-                      </button>
+                    <div className="flex flex-wrap items-center justify-end gap-1">
+                      {editingTodoId === todo.id ? (
+                        <>
+                          <button onClick={cancelTodoEdit} className="text-[10px] flex items-center gap-1 text-[#72787c] hover:bg-black/5 px-1.5 py-0.5 rounded transition-colors">
+                            <X className="w-3 h-3" /> Cancel
+                          </button>
+                          <button onClick={saveTodoEdit} className="text-[10px] flex items-center gap-1 text-[#446172] hover:bg-[#446172]/10 px-1.5 py-0.5 rounded transition-colors">
+                            <Check className="w-3 h-3" /> Save
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button onClick={() => startTodoEdit(todo)} className="text-[10px] flex items-center gap-1 text-[#72787c] hover:text-[#446172] hover:bg-[#446172]/10 px-1.5 py-0.5 rounded transition-colors">
+                            <Pencil className="w-3 h-3" /> Edit
+                          </button>
+                          <span className="text-[10px] flex items-center gap-1 text-[#446172] bg-[#446172]/10 px-1.5 py-0.5 rounded">
+                            <CalendarIcon className="w-3 h-3" /> {todo.date ? formatTodoDate(todo.date) : ''}
+                          </span>
+                          <button
+                            onClick={() => unassignTodoFromDate(todo.id)}
+                            className="text-[10px] flex items-center gap-1 text-[#72787c] hover:text-[#446172] hover:bg-[#446172]/10 px-1.5 py-0.5 rounded transition-colors"
+                            title="Move back to flexible list"
+                          >
+                            <Undo2 className="w-3 h-3" /> Flexible
+                          </button>
+                          <button
+                            onClick={() => deleteTodo(todo.id)}
+                            className="text-[10px] flex items-center gap-1 text-[#a65d5d] hover:bg-[#a65d5d]/10 px-1.5 py-0.5 rounded transition-colors"
+                            title="Delete task"
+                          >
+                            <Trash2 className="w-3 h-3" /> Delete
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
