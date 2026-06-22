@@ -10,7 +10,7 @@ import { ChangelogModal } from './components/ChangelogModal';
 import { CHANGELOG_ENTRIES } from './data/changelog';
 import { useCoupleSyncStore } from './lib/useCoupleSyncStore';
 import { useSupabaseSession } from './lib/useSupabaseSession';
-import { CalendarEvent, Message, ViewMode } from './types';
+import { CalendarEvent, Message, RightPanelTab, ViewMode } from './types';
 
 const CHANGELOG_LAST_SEEN_KEY = 'couplesync-changelog-last-seen';
 
@@ -38,7 +38,7 @@ export default function App() {
     mobileQuery.addEventListener('change', closePanelsOnMobile);
     return () => mobileQuery.removeEventListener('change', closePanelsOnMobile);
   }, []);
-  const [rightTab, setRightTab] = useState<'inbox' | 'todos'>('inbox');
+  const [rightTab, setRightTab] = useState<RightPanelTab>('inbox');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [changelogOpen, setChangelogOpen] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => (
@@ -437,6 +437,7 @@ export default function App() {
           setIsOpen={setRightOpen}
           messages={store.messages}
           todos={store.todos}
+          habits={store.habits}
           activeTab={rightTab}
           setActiveTab={setRightTab}
           addEventFromMessage={openScheduleDialog}
@@ -448,6 +449,11 @@ export default function App() {
           toggleTodo={store.toggleTodo}
           deleteTodo={deleteTodoWithUndo}
           deleteInboxMessage={deleteMessageWithUndo}
+          currentUserRole={currentUserRole}
+          isBackendConfigured={auth.isConfigured}
+          profileLocationFieldsReady={store.profileLocationFieldsReady}
+          profileLocations={store.profileLocations}
+          updateWeatherLocation={store.updateWeatherLocation}
           userNames={store.userNames}
         />
 

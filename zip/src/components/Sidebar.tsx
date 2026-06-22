@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { CalendarConnection, CoupleWorkspace, HabitDefinition, Layer, ToDo, User as UserRole, UserNames } from '../types';
 import { cn } from '../lib/utils';
 import { User, Heart, CheckCircle2, Plus, MailOpen, Archive, Menu, PanelLeftClose, Wifi, WifiOff, CalendarSync, ExternalLink, RefreshCw, Trash2 } from 'lucide-react';
@@ -27,6 +28,8 @@ interface SidebarProps {
   syncGoogleCalendar: () => void;
 }
 
+type SidebarSection = 'profile' | 'calendar' | 'layers' | 'tasks' | 'habits';
+
 export function Sidebar({ layers, activeLayers, toggleLayer, toggleAll, isOpen, setIsOpen, userNames, createCustomLayer, habitDefinitions, createHabitDefinition, todos, currentUserRole, addNewTodo, toggleTodo, deleteTodo, workspace, isBackendConfigured, calendarConnections, calendarActionLoading, connectGoogleCalendar, syncGoogleCalendar }: SidebarProps) {
   const isAllVisible = activeLayers.length === layers.length;
   const [isCreating, setIsCreating] = useState(false);
@@ -35,6 +38,12 @@ export function Sidebar({ layers, activeLayers, toggleLayer, toggleAll, isOpen, 
   const [habitName, setHabitName] = useState('');
   const [habitColor, setHabitColor] = useState('#4ade80');
   const [personalTaskText, setPersonalTaskText] = useState('');
+  const [pendingSection, setPendingSection] = useState<SidebarSection | null>(null);
+  const profileSectionRef = useRef<HTMLDivElement | null>(null);
+  const calendarSectionRef = useRef<HTMLDivElement | null>(null);
+  const layersSectionRef = useRef<HTMLDivElement | null>(null);
+  const tasksSectionRef = useRef<HTMLDivElement | null>(null);
+  const habitsSectionRef = useRef<HTMLDivElement | null>(null);
 
   const personalTodos = todos.filter(todo => !todo.date && todo.assignee === currentUserRole);
   const currentUserName = currentUserRole === 'him' ? userNames.him : userNames.her;
@@ -51,6 +60,27 @@ export function Sidebar({ layers, activeLayers, toggleLayer, toggleAll, isOpen, 
   const googleLastSynced = googleConnection?.lastSyncedAt
     ? new Date(googleConnection.lastSyncedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
     : null;
+  const sectionRefs: Record<SidebarSection, { current: HTMLDivElement | null }> = {
+    profile: profileSectionRef,
+    calendar: calendarSectionRef,
+    layers: layersSectionRef,
+    tasks: tasksSectionRef,
+    habits: habitsSectionRef,
+  };
+
+  useEffect(() => {
+    if (!isOpen || !pendingSection) return;
+    const frame = window.requestAnimationFrame(() => {
+      sectionRefs[pendingSection].current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setPendingSection(null);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [isOpen, pendingSection]);
+
+  const openSection = (section: SidebarSection) => {
+    setPendingSection(section);
+    setIsOpen(true);
+  };
 
   if (!isOpen) {
     return (
@@ -59,10 +89,18 @@ export function Sidebar({ layers, activeLayers, toggleLayer, toggleAll, isOpen, 
           <Menu className="w-5 h-5 text-[#446172]" />
         </button>
         <div className="space-y-6">
-          <User className="w-5 h-5 text-[#72787c]" />
-          <Heart className="w-5 h-5 text-[#72787c]" />
-          <CheckCircle2 className="w-5 h-5 text-[#72787c]" />
-          <CalendarSync className="w-5 h-5 text-[#72787c]" />
+          <button onClick={() => openSection('profile')} className="p-2 rounded-full text-[#72787c] hover:bg-black/5 hover:text-[#446172] transition-colors" title="Workspace">
+            <User className="w-5 h-5" />
+          </button>
+          <button onClick={() => openSection('habits')} className="p-2 rounded-full text-[#72787c] hover:bg-black/5 hover:text-[#446172] transition-colors" title="Habits">
+            <Heart className="w-5 h-5" />
+          </button>
+          <button onClick={() => openSection('tasks')} className="p-2 rounded-full text-[#72787c] hover:bg-black/5 hover:text-[#446172] transition-colors" title="My Tasks">
+            <CheckCircle2 className="w-5 h-5" />
+          </button>
+          <button onClick={() => openSection('calendar')} className="p-2 rounded-full text-[#72787c] hover:bg-black/5 hover:text-[#446172] transition-colors" title="Google Calendar">
+            <CalendarSync className="w-5 h-5" />
+          </button>
         </div>
       </div>
     );
@@ -96,7 +134,7 @@ export function Sidebar({ layers, activeLayers, toggleLayer, toggleAll, isOpen, 
           </div>
         </div>
 
-        <div className="mb-6 rounded-xl border border-[#eceef0] bg-white/60 p-3">
+        <div ref={profileSectionRef} className="mb-6 rounded-xl border border-[#eceef0] bg-white/60 p-3 scroll-mt-6">
           <div className="flex items-center gap-2 text-xs font-medium text-[#42474c]">
             <WorkspaceStatusIcon className="w-3.5 h-3.5 text-[#446172]" />
             <span>{statusLabel}</span>
@@ -109,7 +147,7 @@ export function Sidebar({ layers, activeLayers, toggleLayer, toggleAll, isOpen, 
           </div>
         </div>
 
-        <div className="mb-6 rounded-xl border border-[#eceef0] bg-white/60 p-3">
+        <div ref={calendarSectionRef} className="mb-6 rounded-xl border border-[#eceef0] bg-white/60 p-3 scroll-mt-6">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-xs font-medium text-[#42474c]">
               <CalendarSync className="w-3.5 h-3.5 text-[#446172]" />
@@ -156,7 +194,7 @@ export function Sidebar({ layers, activeLayers, toggleLayer, toggleAll, isOpen, 
         </div>
 
         {/* Visibility Controls */}
-        <div className="flex items-center justify-between mb-4">
+        <div ref={layersSectionRef} className="flex items-center justify-between mb-4 scroll-mt-6">
           <span className="text-[10px] font-semibold tracking-widest text-[#a0a5a9] uppercase">Visibility</span>
           <button onClick={toggleAll} className="text-xs font-medium text-[#446172] hover:underline">
             {isAllVisible ? 'Hide All' : 'Show All'}
@@ -192,7 +230,7 @@ export function Sidebar({ layers, activeLayers, toggleLayer, toggleAll, isOpen, 
           })}
         </div>
 
-        <div className="mt-8">
+        <div ref={tasksSectionRef} className="mt-8 scroll-mt-6">
           <div className="flex items-center justify-between mb-3">
             <div>
               <span className="block text-[10px] font-semibold tracking-widest text-[#a0a5a9] uppercase">My Tasks</span>
@@ -290,7 +328,7 @@ export function Sidebar({ layers, activeLayers, toggleLayer, toggleAll, isOpen, 
           </button>
         )}
 
-        <div className="mt-8">
+        <div ref={habitsSectionRef} className="mt-8 scroll-mt-6">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[10px] font-semibold tracking-widest text-[#a0a5a9] uppercase">Habits</span>
             <span className="text-[10px] text-[#a0a5a9]">{habitDefinitions.length}</span>

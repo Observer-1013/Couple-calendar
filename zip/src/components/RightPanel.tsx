@@ -1,17 +1,21 @@
 import { useState } from 'react';
-import { Message, MessageCategory, ToDo, User, UserNames } from '../types';
+import { useEffect } from 'react';
+import { HabitRecord, Message, MessageCategory, RightPanelTab, ToDo, User, UserNames, WeatherLocation } from '../types';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
 import { PanelRightClose, MessageSquareShare, Reply, CalendarPlus, Plus, Calendar as CalendarIcon, CheckSquare, Send, Undo2, Trash2 } from 'lucide-react';
+import { Activity, LocateFixed, MapPin, RefreshCw } from 'lucide-react';
 import { setCalendarDragData } from '../lib/calendarDrag';
+import { describeWeatherCode, fetchWeatherForecast, geocodeCity, WeatherForecast } from '../lib/weather';
 
 interface RightPanelProps {
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
   messages: Message[];
   todos: ToDo[];
-  activeTab: 'inbox' | 'todos';
-  setActiveTab: (tab: 'inbox' | 'todos') => void;
+  habits: HabitRecord[];
+  activeTab: RightPanelTab;
+  setActiveTab: (tab: RightPanelTab) => void;
   addEventFromMessage: (message: Message) => void;
   addInboxMessage: (content: string, category: MessageCategory) => void;
   addNewTodo: (assignee: User | 'both', text: string) => void;
@@ -21,10 +25,46 @@ interface RightPanelProps {
   toggleTodo: (todoId: string) => void;
   deleteTodo: (todoId: string) => void;
   deleteInboxMessage: (messageId: string) => void;
+  currentUserRole: User;
+  isBackendConfigured: boolean;
+  profileLocationFieldsReady: boolean;
+  profileLocations: Record<User, WeatherLocation | null>;
+  updateWeatherLocation: (location: WeatherLocation) => Promise<{ ok: boolean; error?: string }>;
   userNames: UserNames;
 }
 
-export function RightPanel({ isOpen, setIsOpen, messages, todos, activeTab, setActiveTab, addEventFromMessage, addInboxMessage, addNewTodo, assignTodoToDate, unassignTodoFromDate, replyToMessage, toggleTodo, deleteTodo, deleteInboxMessage, userNames }: RightPanelProps) {
+const PANEL_TABS: { id: RightPanelTab; label: string; title: string; Icon: typeof MessageSquareShare }[] = [
+  { id: 'inbox', label: 'Inbox', title: 'Couple Inbox', Icon: MessageSquareShare },
+  { id: 'todos', label: 'To-Dos', title: 'To-Do Box', Icon: CheckSquare },
+  { id: 'status', label: 'Status', title: '个人状况', Icon: Activity },
+];
+
+const WEEKDAY_LABELS = ['日', '一', '二', '三', '四', '五', '六'];
+const PARTNER_ROLES: User[] = ['him', 'her'];
+
+function getRecentDays() {
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date();
+    date.setHours(12, 0, 0, 0);
+    date.setDate(date.getDate() - (6 - index));
+    return {
+      key: format(date, 'yyyy-MM-dd'),
+      label: WEEKDAY_LABELS[date.getDay()],
+    };
+  });
+}
+
+function getCurrentPosition(): Promise<GeolocationPosition> {
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: false,
+      maximumAge: 300000,
+      timeout: 10000,
+    });
+  });
+}
+
+export function RightPanel({ isOpen, setIsOpen, messages, todos, habits, activeTab, setActiveTab, addEventFromMessage, addInboxMessage, addNewTodo, assignTodoToDate, unassignTodoFromDate, replyToMessage, toggleTodo, deleteTodo, deleteInboxMessage, currentUserRole, isBackendConfigured, profileLocationFieldsReady, profileLocations, updateWeatherLocation, userNames }: RightPanelProps) {
   const [todoFilter, setTodoFilter] = useState<'all' | 'him' | 'her'>('all');
   const [newMessage, setNewMessage] = useState('');
   const [newCategory, setNewCategory] = useState<MessageCategory>('idea');
@@ -32,6 +72,107 @@ export function RightPanel({ isOpen, setIsOpen, messages, todos, activeTab, setA
   const [replyText, setReplyText] = useState('');
   const [todoText, setTodoText] = useState('');
   const [todoAssignee, setTodoAssignee] = useState<User | 'both'>('both');
+  const [cityDraft, setCityDraft] = useState('');
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [locationSaving, setLocationSaving] = useState<'city' | 'browser' | null>(null);
+  const [weatherByRole, setWeatherByRole] = useState<Partial<Record<User, WeatherForecast>>>({});
+  const [weatherErrors, setWeatherErrors] = useState<Partial<Record<User, string>>>({});
+  const [weatherLoadingRoles, setWeatherLoadingRoles] = useState<User[]>([]);
+  const recentDays = getRecentDays();
+  const recentDayKeys = new Set(recentDays.map(day => day.key));
+  const locationSignature = PARTNER_ROLES
+    .map(role => {
+      const location = profileLocations[role];
+      return `${role}:${location?.latitude ?? ''}:${location?.longitude ?? ''}`;
+    })
+    .join('|');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    PARTNER_ROLES.forEach(role => {
+      const location = profileLocations[role];
+      if (location?.latitude == null || location.longitude == null) {
+        setWeatherByRole(previous => {
+          const next = { ...previous };
+          delete next[role];
+          return next;
+        });
+        return;
+      }
+
+      setWeatherLoadingRoles(previous => previous.includes(role) ? previous : [...previous, role]);
+      setWeatherErrors(previous => ({ ...previous, [role]: undefined }));
+
+      fetchWeatherForecast(location)
+        .then(forecast => {
+          if (cancelled) return;
+          setWeatherByRole(previous => ({ ...previous, [role]: forecast }));
+        })
+        .catch(caught => {
+          if (cancelled) return;
+          setWeatherErrors(previous => ({
+            ...previous,
+            [role]: caught instanceof Error ? caught.message : '天气加载失败',
+          }));
+        })
+        .finally(() => {
+          if (cancelled) return;
+          setWeatherLoadingRoles(previous => previous.filter(item => item !== role));
+        });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [locationSignature, profileLocations]);
+
+  const openTab = (tab: RightPanelTab) => {
+    setActiveTab(tab);
+    setIsOpen(true);
+  };
+
+  const saveCityLocation = async () => {
+    if (!cityDraft.trim()) return;
+    setLocationSaving('city');
+    setLocationError(null);
+    try {
+      const location = await geocodeCity(cityDraft);
+      const result = await updateWeatherLocation(location);
+      if (!result.ok) {
+        setLocationError(result.error || '位置保存失败');
+        return;
+      }
+      setCityDraft('');
+    } catch (caught) {
+      setLocationError(caught instanceof Error ? caught.message : '位置保存失败');
+    } finally {
+      setLocationSaving(null);
+    }
+  };
+
+  const saveBrowserLocation = async () => {
+    setLocationSaving('browser');
+    setLocationError(null);
+    try {
+      if (!navigator.geolocation) throw new Error('当前浏览器不支持定位授权');
+      const position = await getCurrentPosition();
+      const result = await updateWeatherLocation({
+        city: '当前位置',
+        country: null,
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        updatedAt: new Date().toISOString(),
+      });
+      if (!result.ok) {
+        setLocationError(result.error || '位置保存失败');
+      }
+    } catch (caught) {
+      setLocationError(caught instanceof Error ? caught.message : '无法获取当前位置');
+    } finally {
+      setLocationSaving(null);
+    }
+  };
 
   if (!isOpen) {
     return (
@@ -40,8 +181,16 @@ export function RightPanel({ isOpen, setIsOpen, messages, todos, activeTab, setA
           <PanelRightClose className="w-5 h-5 text-[#446172] transform rotate-180" />
         </button>
         <div className="space-y-6">
-          <MessageSquareShare className="w-5 h-5 text-[#72787c]" />
-          <CheckSquare className="w-5 h-5 text-[#72787c]" />
+          {PANEL_TABS.map(({ id, title, Icon }) => (
+            <button
+              key={id}
+              onClick={() => openTab(id)}
+              className="p-2 rounded-full text-[#72787c] hover:bg-black/5 hover:text-[#446172] transition-colors"
+              title={title}
+            >
+              <Icon className="w-5 h-5" />
+            </button>
+          ))}
         </div>
       </div>
     );
@@ -75,6 +224,8 @@ export function RightPanel({ isOpen, setIsOpen, messages, todos, activeTab, setA
   const scheduledTodos = todos.filter(todo => todo.date).filter(matchesTodoFilter);
 
   const formatTodoDate = (date: string) => format(new Date(`${date}T00:00:00`), 'MMM d');
+  const activeTabConfig = PANEL_TABS.find(tab => tab.id === activeTab) ?? PANEL_TABS[0];
+  const ActiveIcon = activeTabConfig.Icon;
 
   return (
     <aside className="fixed md:static right-0 top-0 z-40 w-[min(320px,calc(100vw-3rem))] md:w-[320px] h-full flex flex-col bg-[#f5f7f9]/95 md:bg-[#f5f7f9] backdrop-blur-md md:backdrop-blur-0 border-l border-[#eceef0] shrink-0 p-6 shadow-2xl md:shadow-[-10px_0_30px_rgba(0,0,0,0.02)] md:relative">
@@ -87,11 +238,27 @@ export function RightPanel({ isOpen, setIsOpen, messages, todos, activeTab, setA
         <PanelRightClose className="w-4 h-4" />
       </button>
 
+      <div className="absolute left-4 top-16 flex flex-col gap-2">
+        {PANEL_TABS.map(({ id, title, Icon }) => (
+          <button
+            key={id}
+            onClick={() => setActiveTab(id)}
+            className={cn(
+              "p-1.5 rounded-lg transition-colors",
+              activeTab === id ? "bg-[#446172]/10 text-[#446172]" : "text-[#72787c] hover:bg-black/5 hover:text-[#446172]",
+            )}
+            title={title}
+          >
+            <Icon className="w-4 h-4" />
+          </button>
+        ))}
+      </div>
+
       <div className="flex items-start justify-between mb-2 pl-8">
         <div className="flex items-center gap-2">
-          {activeTab === 'inbox' ? <MessageSquareShare className="w-5 h-5 text-[#446172]" /> : <CheckSquare className="w-5 h-5 text-[#446172]" />}
+          <ActiveIcon className="w-5 h-5 text-[#446172]" />
           <h2 className="text-xl font-display font-semibold text-[#191c1e]">
-            {activeTab === 'inbox' ? 'Couple Inbox' : 'To-Do Box'}
+            {activeTabConfig.title}
           </h2>
         </div>
       </div>
@@ -99,24 +266,157 @@ export function RightPanel({ isOpen, setIsOpen, messages, todos, activeTab, setA
       {activeTab === 'inbox' && (
         <p className="text-xs text-[#72787c] italic mb-6 pl-8">Share notes or drag to schedule</p>
       )}
+      {activeTab === 'status' && (
+        <p className="text-xs text-[#72787c] italic mb-6 pl-8">最近 7 天打卡和双方天气</p>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-2 mb-6 mt-4 p-1 bg-white/50 rounded-lg border border-[#eceef0]">
-        <button 
-          onClick={() => setActiveTab('inbox')}
-          className={cn("flex-1 text-xs py-1.5 font-medium rounded-md transition-colors", activeTab === 'inbox' ? "bg-white shadow-sm text-[#191c1e]" : "text-[#72787c]")}
-        >
-          Inbox
-        </button>
-        <button 
-          onClick={() => setActiveTab('todos')}
-          className={cn("flex-1 text-xs py-1.5 font-medium rounded-md transition-colors", activeTab === 'todos' ? "bg-white shadow-sm text-[#191c1e]" : "text-[#72787c]")}
-        >
-          To-Dos
-        </button>
+        {PANEL_TABS.map(({ id, label }) => (
+          <button
+            key={id}
+            onClick={() => setActiveTab(id)}
+            className={cn("flex-1 text-xs py-1.5 font-medium rounded-md transition-colors", activeTab === id ? "bg-white shadow-sm text-[#191c1e]" : "text-[#72787c]")}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       <div className="flex-1 overflow-y-auto no-scrollbar space-y-4">
+        {activeTab === 'status' && (
+          <div className="space-y-4">
+            {PARTNER_ROLES.map(role => {
+              const roleLogs = habits.filter(log => log.user === role && recentDayKeys.has(log.date));
+              const location = profileLocations[role];
+              const weather = weatherByRole[role];
+              const isWeatherLoading = weatherLoadingRoles.includes(role);
+              const weatherError = weatherErrors[role];
+
+              return (
+                <section key={role} className="rounded-xl border border-[#eceef0] bg-white p-4 shadow-sm">
+                  <div className="mb-4 flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="truncate text-sm font-semibold text-[#191c1e]">{userNames[role]}</h3>
+                      <p className="mt-0.5 text-xs text-[#72787c]">最近 7 天打卡</p>
+                    </div>
+                    <div className="rounded-lg bg-[#446172]/10 px-2.5 py-1 text-right">
+                      <div className="text-lg font-semibold leading-none text-[#446172]">{roleLogs.length}</div>
+                      <div className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider text-[#72787c]">次</div>
+                    </div>
+                  </div>
+
+                  <div className="mb-4 grid grid-cols-7 gap-1.5">
+                    {recentDays.map(day => {
+                      const count = roleLogs.filter(log => log.date === day.key).length;
+                      return (
+                        <div key={day.key} className="flex flex-col items-center gap-1">
+                          <span className="text-[10px] font-medium text-[#a0a5a9]">{day.label}</span>
+                          <span
+                            className={cn(
+                              "flex h-6 w-6 items-center justify-center rounded-full border text-[10px] font-semibold",
+                              count > 0 ? "border-[#8cb3a1] bg-[#c8e6d9] text-[#476456]" : "border-[#eceef0] bg-[#fbfcfd] text-[#c2c7cc]",
+                            )}
+                            title={`${day.key}: ${count} 次`}
+                          >
+                            {count > 0 ? count : ''}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="rounded-lg border border-[#eceef0] bg-[#fbfcfd] p-3">
+                    <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-[#42474c]">
+                      <MapPin className="h-3.5 w-3.5 text-[#446172]" />
+                      <span>{location ? `${location.city}${location.country ? ` · ${location.country}` : ''}` : '未设置天气位置'}</span>
+                    </div>
+                    {!location && (
+                      <p className="text-xs leading-relaxed text-[#a0a5a9]">
+                        {role === currentUserRole ? '在下方设置你的城市或使用当前位置。' : '等待对方设置位置后显示天气。'}
+                      </p>
+                    )}
+                    {location && isWeatherLoading && (
+                      <div className="flex items-center gap-2 text-xs text-[#72787c]">
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                        正在加载天气
+                      </div>
+                    )}
+                    {location && weatherError && !isWeatherLoading && (
+                      <p className="text-xs text-[#a65d5d]">{weatherError}</p>
+                    )}
+                    {location && weather && !isWeatherLoading && (
+                      <div className="space-y-3">
+                        <div className="flex items-end justify-between gap-3">
+                          <div>
+                            <div className="text-2xl font-semibold leading-none text-[#191c1e]">{weather.currentTemperature}°</div>
+                            <div className="mt-1 text-xs text-[#72787c]">{describeWeatherCode(weather.currentWeatherCode)}</div>
+                          </div>
+                          <div className="grid grid-cols-3 gap-1.5 text-center">
+                            {weather.days.map(day => (
+                              <div key={day.date} className="rounded-md bg-white px-1.5 py-1">
+                                <div className="text-[9px] text-[#a0a5a9]">{format(new Date(`${day.date}T00:00:00`), 'M/d')}</div>
+                                <div className="mt-0.5 text-[10px] font-semibold text-[#42474c]">{day.min}°/{day.max}°</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              );
+            })}
+
+            <section className="rounded-xl border border-[#eceef0] bg-white p-4 shadow-sm">
+              <div className="mb-3">
+                <h3 className="text-sm font-semibold text-[#191c1e]">我的天气位置</h3>
+                <p className="mt-0.5 text-xs text-[#72787c]">保存到你的 profile，对方也能看到你的天气。</p>
+              </div>
+
+              {!isBackendConfigured && (
+                <p className="mb-3 rounded-lg bg-[#f7f9fb] px-2.5 py-2 text-xs text-[#72787c]">
+                  当前是 Demo 模式，位置只会临时保存在本地状态里。
+                </p>
+              )}
+              {isBackendConfigured && !profileLocationFieldsReady && (
+                <p className="mb-3 rounded-lg bg-[#fff7f7] px-2.5 py-2 text-xs text-[#8f3d3d]">
+                  需要先在 Supabase SQL Editor 运行天气位置 migration，才能保存城市。
+                </p>
+              )}
+              {locationError && (
+                <p className="mb-3 rounded-lg bg-[#fff7f7] px-2.5 py-2 text-xs text-[#8f3d3d]">{locationError}</p>
+              )}
+
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    value={cityDraft}
+                    onChange={event => setCityDraft(event.target.value)}
+                    className="min-w-0 flex-1 h-9 rounded-lg border border-[#eceef0] bg-[#fbfcfd] px-3 text-sm outline-none focus:border-[#446172]"
+                    placeholder="输入城市，例如 London"
+                  />
+                  <button
+                    onClick={saveCityLocation}
+                    disabled={Boolean(locationSaving) || (isBackendConfigured && !profileLocationFieldsReady)}
+                    className="h-9 rounded-lg bg-[#446172]/10 px-3 text-xs font-semibold text-[#446172] hover:bg-[#446172]/20 transition-colors disabled:opacity-50"
+                  >
+                    保存
+                  </button>
+                </div>
+                <button
+                  onClick={saveBrowserLocation}
+                  disabled={Boolean(locationSaving) || (isBackendConfigured && !profileLocationFieldsReady)}
+                  className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-[#eceef0] bg-[#fbfcfd] text-xs font-semibold text-[#42474c] hover:bg-white transition-colors disabled:opacity-50"
+                >
+                  {locationSaving === 'browser' ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <LocateFixed className="h-3.5 w-3.5" />}
+                  使用当前位置
+                </button>
+              </div>
+            </section>
+          </div>
+        )}
+
         {activeTab === 'inbox' && (
           <div className="bg-white p-3 rounded-xl shadow-sm border border-[#eceef0] space-y-3">
             <textarea

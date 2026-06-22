@@ -41,6 +41,7 @@ function checkFiles() {
     'supabase/migrations/20260621102000_external_calendar_sync_readiness.sql',
     'supabase/migrations/20260621113000_google_calendar_oauth_readiness.sql',
     'supabase/migrations/20260622113000_delete_policy_readiness.sql',
+    'supabase/migrations/20260622124500_profile_weather_location.sql',
     'api/_googleCalendarShared.js',
     'api/calendar/google/connect.js',
     'api/calendar/google/callback.js',

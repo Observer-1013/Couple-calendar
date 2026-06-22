@@ -56,12 +56,15 @@ The bundle contains these local SQL files in filename order:
    - `zip/supabase/migrations/20260621023000_initial_schema.sql`
    - `zip/supabase/migrations/20260621102000_external_calendar_sync_readiness.sql`
    - `zip/supabase/migrations/20260621113000_google_calendar_oauth_readiness.sql`
+   - `zip/supabase/migrations/20260622113000_delete_policy_readiness.sql`
+   - `zip/supabase/migrations/20260622124500_profile_weather_location.sql`
 
 If you prefer not to use the bundle, you can still copy and run each migration file one at a time in that same order.
 
 This creates profiles, couples, members, layers, events, habits, todos, inbox threads, RLS policies, and realtime publication setup.
 The second migration adds external-calendar deduplication, connection sync status, and realtime updates for calendar connections.
 The third migration adds unique keys for safe Google OAuth connection and imported-event upserts.
+The later migrations add delete permissions for undo-supported records and weather-location fields on profiles.
 
 After the SQL has run, verify the live project from this folder:
 

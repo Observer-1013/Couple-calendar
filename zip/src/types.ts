@@ -2,10 +2,19 @@ export type Habit = string;
 export type User = 'him' | 'her';
 export type MessageCategory = 'idea' | 'plan' | 'love';
 export type ViewMode = 'Day' | 'Week' | 'Month' | 'Year';
+export type RightPanelTab = 'inbox' | 'todos' | 'status';
 
 export interface UserNames {
   him: string;
   her: string;
+}
+
+export interface WeatherLocation {
+  city: string;
+  country?: string | null;
+  latitude: number;
+  longitude: number;
+  updatedAt?: string | null;
 }
 
 export interface ToDo {

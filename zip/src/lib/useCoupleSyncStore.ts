@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { mockEvents, mockHabits, mockMessages, mockTodos } from '../mockData';
-import { CalendarConnection, CalendarEvent, CoupleWorkspace, HabitDefinition, HabitRecord, Layer, Message, MessageCategory, ToDo, User, UserNames } from '../types';
+import { CalendarConnection, CalendarEvent, CoupleWorkspace, HabitDefinition, HabitRecord, Layer, Message, MessageCategory, ToDo, User, UserNames, WeatherLocation } from '../types';
 import { isSupabaseConfigured, supabase, type Session } from './supabase';
 
 const DEFAULT_NAMES: UserNames = { him: 'Leo', her: 'Aria' };
+
+const EMPTY_PROFILE_LOCATIONS: Record<User, WeatherLocation | null> = { him: null, her: null };
+const PROFILE_LOCATION_SELECT = 'id, display_name, weather_city, weather_country, weather_latitude, weather_longitude, weather_updated_at';
 
 const INITIAL_LAYERS: Layer[] = [
   { id: 'him_schedule', slug: 'him_schedule', name: 'His Schedule', type: 'schedule', owner: 'him', color: '#d1e6e0' },
@@ -42,6 +45,15 @@ function tableError(error: { message?: string } | null) {
   if (error) throw new Error(error.message || 'Supabase request failed');
 }
 
+function missingWeatherColumns(error: { message?: string; code?: string } | null) {
+  return Boolean(error && (
+    error.code === '42703'
+    || error.message?.includes('weather_city')
+    || error.message?.includes('weather_latitude')
+    || error.message?.includes('weather_longitude')
+  ));
+}
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -51,10 +63,27 @@ function todayAtNoon() {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12);
 }
 
+function readWeatherLocation(profile: any): WeatherLocation | null {
+  if (profile?.weather_latitude == null || profile?.weather_longitude == null) return null;
+  const latitude = Number(profile.weather_latitude);
+  const longitude = Number(profile.weather_longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+
+  return {
+    city: profile.weather_city || '当前位置',
+    country: profile.weather_country ?? null,
+    latitude,
+    longitude,
+    updatedAt: profile.weather_updated_at ?? null,
+  };
+}
+
 export function useCoupleSyncStore(session: Session | null) {
   const dbMode = Boolean(isSupabaseConfigured && supabase && session);
   const [currentDate, setCurrentDate] = useState(todayAtNoon);
   const [userNames, setUserNames] = useState<UserNames>(DEFAULT_NAMES);
+  const [profileLocations, setProfileLocations] = useState<Record<User, WeatherLocation | null>>(EMPTY_PROFILE_LOCATIONS);
+  const [profileLocationFieldsReady, setProfileLocationFieldsReady] = useState(true);
   const [layers, setLayers] = useState<Layer[]>(INITIAL_LAYERS);
   const [activeLayers, setActiveLayers] = useState<string[]>(INITIAL_LAYERS.map(layer => layer.id));
   const [todos, setTodos] = useState<ToDo[]>(mockTodos);
@@ -71,6 +100,7 @@ export function useCoupleSyncStore(session: Session | null) {
   const [error, setError] = useState<string | null>(null);
   const hasSetLiveDateRef = useRef(false);
   const layerIdsRef = useRef<string[]>(INITIAL_LAYERS.map(layer => layer.id));
+  const [memberProfileIds, setMemberProfileIds] = useState<string[]>([]);
   const reloadRef = useRef<() => void>(() => {});
 
   const ensureProfile = useCallback(async () => {
@@ -128,23 +158,37 @@ export function useCoupleSyncStore(session: Session | null) {
 
     const memberRows = membersResult.data ?? [];
     const profileIds = memberRows.map((member: any) => member.user_id).filter(Boolean);
-    const profilesResult = profileIds.length
-      ? await supabase.from('profiles').select('id, display_name').in('id', profileIds)
+    setMemberProfileIds(profileIds);
+
+    let profilesResult = profileIds.length
+      ? await supabase.from('profiles').select(PROFILE_LOCATION_SELECT).in('id', profileIds)
       : { data: [], error: null };
+
+    if (missingWeatherColumns(profilesResult.error)) {
+      setProfileLocationFieldsReady(false);
+      profilesResult = profileIds.length
+        ? await supabase.from('profiles').select('id, display_name').in('id', profileIds)
+        : { data: [], error: null };
+    } else {
+      setProfileLocationFieldsReady(true);
+    }
 
     tableError(profilesResult.error);
 
     const profilesById = new Map((profilesResult.data ?? []).map((profile: any) => [profile.id, profile]));
     const nextNames: UserNames = { ...DEFAULT_NAMES };
+    const nextProfileLocations: Record<User, WeatherLocation | null> = { ...EMPTY_PROFILE_LOCATIONS };
 
     memberRows.forEach((member: any) => {
       if (member.role === 'him' || member.role === 'her') {
         const profile = profilesById.get(member.user_id);
         nextNames[member.role] = profile?.display_name || (member.user_id === session?.user.id ? readUserName(session) : nextNames[member.role]);
+        nextProfileLocations[member.role] = readWeatherLocation(profile);
       }
     });
 
     setUserNames(nextNames);
+    setProfileLocations(nextProfileLocations);
 
     const nextLayers: Layer[] = (layersResult.data ?? []).map((layer: any) => ({
       id: layer.slug || layer.id,
@@ -346,6 +390,24 @@ export function useCoupleSyncStore(session: Session | null) {
       void supabase.removeChannel(channel);
     };
   }, [dbMode, workspace?.coupleId]);
+
+  useEffect(() => {
+    if (!dbMode || !supabase || memberProfileIds.length === 0) return;
+
+    const channel = supabase
+      .channel(`couplesync-profiles-${memberProfileIds.join('-')}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, payload => {
+        const profileId = (payload.new as any)?.id || (payload.old as any)?.id;
+        if (profileId && memberProfileIds.includes(profileId)) {
+          reloadRef.current();
+        }
+      })
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [dbMode, memberProfileIds]);
 
   const createCouple = useCallback(async (name: string, role: User) => {
     if (!supabase) return;
@@ -1118,6 +1180,52 @@ export function useCoupleSyncStore(session: Session | null) {
     }
   }, [dbMode, session]);
 
+  const updateWeatherLocation = useCallback(async (location: WeatherLocation) => {
+    const role = workspace?.role || 'him';
+    const nextLocation: WeatherLocation = {
+      city: location.city.trim() || '当前位置',
+      country: location.country ?? null,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (!Number.isFinite(nextLocation.latitude) || !Number.isFinite(nextLocation.longitude)) {
+      const message = '天气位置坐标无效';
+      setError(message);
+      return { ok: false, error: message };
+    }
+
+    if (dbMode && supabase && session) {
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          weather_city: nextLocation.city,
+          weather_country: nextLocation.country,
+          weather_latitude: nextLocation.latitude,
+          weather_longitude: nextLocation.longitude,
+          weather_updated_at: nextLocation.updatedAt,
+        })
+        .eq('id', session.user.id);
+
+      if (updateError) {
+        const message = missingWeatherColumns(updateError)
+          ? '需要先在 Supabase SQL Editor 运行天气位置 migration'
+          : updateError.message;
+        setError(message);
+        return { ok: false, error: message };
+      }
+
+      setProfileLocationFieldsReady(true);
+      setProfileLocations(previous => ({ ...previous, [role]: nextLocation }));
+      reloadRef.current();
+      return { ok: true };
+    }
+
+    setProfileLocations(previous => ({ ...previous, [role]: nextLocation }));
+    return { ok: true };
+  }, [dbMode, session, workspace?.role]);
+
   const clearError = useCallback(() => {
     setError(null);
   }, []);
@@ -1148,6 +1256,8 @@ export function useCoupleSyncStore(session: Session | null) {
     layers,
     loading,
     messages,
+    profileLocationFieldsReady,
+    profileLocations,
     replyToMessage,
     restoreCalendarEvent,
     restoreInboxMessage,
@@ -1165,6 +1275,7 @@ export function useCoupleSyncStore(session: Session | null) {
     updateCalendarEvent,
     updateHabitDefinition,
     updateLayerColor,
+    updateWeatherLocation,
     userNames,
     workspace,
     joinCouple,

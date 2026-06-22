@@ -8,6 +8,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    id: '2026-06-22-personal-status-weather',
+    date: '2026-06-22',
+    title: '新增个人状况和天气位置',
+    summary: '右侧栏新增个人状况入口，可以查看双方最近 7 天打卡和所在地天气。',
+    items: [
+      '左侧栏收起后的图标现在可以点击，展开后会自动滚到对应区块。',
+      '右侧栏新增个人状况按钮，展开后仍保留信箱、待办和个人状况三个快捷按钮。',
+      '个人状况里展示双方最近 7 天 habit 打卡总次数和每日点阵。',
+      '天气位置支持手动输入城市或使用浏览器当前位置，并准备保存到 Supabase profile。',
+    ],
+  },
+  {
     id: '2026-06-22-settings-undo',
     date: '2026-06-22',
     title: '设置、颜色和更安全的编辑',
