@@ -6,9 +6,13 @@ import { TopNav } from './components/TopNav';
 import { AuthScreen } from './components/AuthScreen';
 import { CoupleSetup } from './components/CoupleSetup';
 import { SettingsModal } from './components/SettingsModal';
+import { ChangelogModal } from './components/ChangelogModal';
+import { CHANGELOG_ENTRIES } from './data/changelog';
 import { useCoupleSyncStore } from './lib/useCoupleSyncStore';
 import { useSupabaseSession } from './lib/useSupabaseSession';
 import { CalendarEvent, Message, ViewMode } from './types';
+
+const CHANGELOG_LAST_SEEN_KEY = 'couplesync-changelog-last-seen';
 
 export default function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('Month');
@@ -36,6 +40,7 @@ export default function App() {
   }, []);
   const [rightTab, setRightTab] = useState<'inbox' | 'todos'>('inbox');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [changelogOpen, setChangelogOpen] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => (
     typeof window === 'undefined' ? 'light' : (localStorage.getItem('couplesync-theme') as 'light' | 'dark') || 'light'
   ));
@@ -63,10 +68,28 @@ export default function App() {
     layerId: '',
   });
   const currentUserRole = store.workspace?.role || 'him';
+  const appReadyForChangelog = !auth.isConfigured || Boolean(auth.session && !store.loading && !store.setupRequired);
 
   useEffect(() => {
     localStorage.setItem('couplesync-theme', theme);
   }, [theme]);
+
+  useEffect(() => {
+    if (!appReadyForChangelog || CHANGELOG_ENTRIES.length === 0) return;
+
+    const now = new Date();
+    const today = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0'),
+    ].join('-');
+    const latestId = CHANGELOG_ENTRIES[0].id;
+    const nextSeenValue = `${today}:${latestId}`;
+
+    if (localStorage.getItem(CHANGELOG_LAST_SEEN_KEY) === nextSeenValue) return;
+    localStorage.setItem(CHANGELOG_LAST_SEEN_KEY, nextSeenValue);
+    setChangelogOpen(true);
+  }, [appReadyForChangelog]);
 
   const showUndo = (message: string, undo: () => void) => {
     if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
@@ -441,8 +464,13 @@ export default function App() {
           changeNames={names => void store.changeNames(names)}
           updateLayerColor={store.updateLayerColor}
           updateHabitDefinition={store.updateHabitDefinition}
+          openChangelog={() => setChangelogOpen(true)}
           onClose={() => setSettingsOpen(false)}
         />
+      )}
+
+      {changelogOpen && (
+        <ChangelogModal onClose={() => setChangelogOpen(false)} />
       )}
 
       {messageToSchedule && (

@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Copy, Moon, RotateCcw, Sun } from 'lucide-react';
+import { Copy, History, Moon, RotateCcw, Sun } from 'lucide-react';
 import { CoupleWorkspace, HabitDefinition, Layer, UserNames } from '../types';
 import { cn } from '../lib/utils';
+import { CHANGELOG_ENTRIES } from '../data/changelog';
 
 type ThemeMode = 'light' | 'dark';
 
@@ -15,6 +16,7 @@ interface SettingsModalProps {
   changeNames: (names: UserNames) => void;
   updateLayerColor: (id: string, color: string) => void;
   updateHabitDefinition: (id: string, updates: Partial<Pick<HabitDefinition, 'name' | 'color' | 'active'>>) => void;
+  openChangelog: () => void;
   onClose: () => void;
 }
 
@@ -28,6 +30,7 @@ export function SettingsModal({
   changeNames,
   updateLayerColor,
   updateHabitDefinition,
+  openChangelog,
   onClose,
 }: SettingsModalProps) {
   const [nameDraft, setNameDraft] = useState<UserNames>(userNames);
@@ -75,6 +78,7 @@ export function SettingsModal({
     });
     onClose();
   };
+  const latestChangelog = CHANGELOG_ENTRIES[0];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#191c1e]/25 backdrop-blur-sm p-4">
@@ -141,6 +145,24 @@ export function SettingsModal({
               </button>
             </div>
           </section>
+
+          {latestChangelog && (
+            <section className="rounded-xl border border-[#eceef0] bg-[#fbfcfd] p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="text-sm font-semibold text-[#191c1e]">Update Log</h3>
+                  <p className="mt-0.5 text-xs text-[#72787c]">{latestChangelog.date} · {latestChangelog.title}</p>
+                </div>
+                <button
+                  onClick={openChangelog}
+                  className="h-8 shrink-0 rounded-lg bg-[#446172]/10 px-3 text-xs font-semibold text-[#446172] flex items-center gap-1.5 hover:bg-[#446172]/20 transition-colors"
+                >
+                  <History className="h-3.5 w-3.5" />
+                  View
+                </button>
+              </div>
+            </section>
+          )}
 
           <section className="rounded-xl border border-[#eceef0] bg-[#fbfcfd] p-4">
             <div className="mb-3">
