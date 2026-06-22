@@ -1,6 +1,6 @@
 export type Habit = string;
 export type User = 'him' | 'her';
-export type MessageCategory = 'idea' | 'plan' | 'love';
+export type MessageCategory = 'idea' | 'plan' | 'love' | 'mood';
 export type ViewMode = 'Day' | 'Week' | 'Month' | 'Year';
 export type RightPanelTab = 'inbox' | 'todos' | 'status';
 

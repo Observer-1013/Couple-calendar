@@ -40,8 +40,19 @@ const PANEL_TABS: { id: RightPanelTab; label: string; title: string; Icon: typeo
   { id: 'status', label: 'Status', title: '个人状况', Icon: Activity },
 ];
 
+const MESSAGE_CATEGORY_OPTIONS: { value: MessageCategory; label: string }[] = [
+  { value: 'idea', label: 'Idea' },
+  { value: 'plan', label: 'Plan' },
+  { value: 'love', label: 'Love' },
+  { value: 'mood', label: 'Mood' },
+];
+
 const WEEKDAY_LABELS = ['日', '一', '二', '三', '四', '五', '六'];
 const PARTNER_ROLES: User[] = ['him', 'her'];
+
+function getMessageCategoryLabel(category: MessageCategory) {
+  return MESSAGE_CATEGORY_OPTIONS.find(option => option.value === category)?.label ?? category;
+}
 
 function getRecentDays() {
   return Array.from({ length: 7 }, (_, index) => {
@@ -442,7 +453,7 @@ export function RightPanel({ isOpen, setIsOpen, messages, todos, habits, activeT
               value={newMessage}
               onChange={event => setNewMessage(event.target.value)}
               rows={3}
-              placeholder="Write an idea, plan, or note..."
+              placeholder="Write an idea, plan, mood, or note..."
               className="w-full resize-none rounded-lg border border-[#eceef0] bg-[#fbfcfd] px-3 py-2 text-sm outline-none focus:border-[#446172]"
             />
             <div className="flex items-center gap-2">
@@ -451,9 +462,9 @@ export function RightPanel({ isOpen, setIsOpen, messages, todos, habits, activeT
                 onChange={event => setNewCategory(event.target.value as MessageCategory)}
                 className="h-8 rounded-md border border-[#eceef0] bg-white px-2 text-xs text-[#42474c] outline-none"
               >
-                <option value="idea">Idea</option>
-                <option value="plan">Plan</option>
-                <option value="love">Love</option>
+                {MESSAGE_CATEGORY_OPTIONS.map(option => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
               </select>
               <button
                 onClick={submitMessage}
@@ -472,14 +483,17 @@ export function RightPanel({ isOpen, setIsOpen, messages, todos, habits, activeT
             onDragStart={event => setCalendarDragData(event, { type: 'message', id: msg.id })}
             className="bg-white p-4 rounded-xl shadow-sm border border-[#eceef0] cursor-grab active:cursor-grabbing"
           >
-            <div className="flex justify-between items-center mb-2">
-              <div className="flex items-center gap-2">
+            <div className="flex justify-between items-center gap-2 mb-2">
+              <div className="min-w-0 flex flex-1 items-center gap-2">
                 <div className={cn("w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white", msg.from === 'him' ? "bg-[#446172]" : "bg-[#8cb3a1]")}>
                   {msg.from === 'him' ? userNames.him.charAt(0) : userNames.her.charAt(0)}
                 </div>
-                <span className="text-xs font-semibold capitalize">{msg.from === 'him' ? userNames.him : userNames.her}</span>
+                <span className="min-w-0 truncate text-xs font-semibold capitalize">{msg.from === 'him' ? userNames.him : userNames.her}</span>
+                <span className="shrink-0 rounded-full bg-[#446172]/10 px-2 py-0.5 text-[10px] font-semibold text-[#446172]">
+                  {getMessageCategoryLabel(msg.category)}
+                </span>
               </div>
-              <span className="text-[10px] text-[#a0a5a9]">
+              <span className="shrink-0 text-[10px] text-[#a0a5a9]">
                 {msg.timestamp.includes('ago') ? msg.timestamp : format(new Date(msg.timestamp), 'MMM d, h:mm a')}
               </span>
             </div>

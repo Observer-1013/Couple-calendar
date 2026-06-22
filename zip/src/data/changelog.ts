@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    id: '2026-06-23-inbox-mood-category',
+    date: '2026-06-23',
+    title: '信箱新增心情记录类别',
+    summary: 'Couple Inbox 现在可以把消息标记为 Mood，用来记录当天状态和情绪。',
+    items: [
+      '新增 Mood 类别，可以在发送信箱消息时直接选择。',
+      '信箱卡片上会显示消息类别，方便区分计划、灵感、情话和心情记录。',
+      'Supabase 类别约束已准备更新，Mood 记录可以长期保存。',
+    ],
+  },
+  {
     id: '2026-06-22-editable-todos',
     date: '2026-06-22',
     title: '待办现在可以直接编辑',
