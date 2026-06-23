@@ -17,6 +17,7 @@ const requiredTables = [
   { name: 'habit_logs', select: 'id' },
   { name: 'todos', select: 'id' },
   { name: 'inbox_messages', select: 'id' },
+  { name: 'feature_wishes', select: 'id' },
   { name: 'calendar_connections', select: 'id,sync_status,last_synced_at,last_sync_error' },
 ];
 

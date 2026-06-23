@@ -43,6 +43,13 @@ export interface HabitDefinition {
   active: boolean;
 }
 
+export interface FeatureWish {
+  id: string;
+  content: string;
+  createdAt: string;
+  author?: User | null;
+}
+
 export interface Message {
   id: string;
   from: User;

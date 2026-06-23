@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { mockEvents, mockHabits, mockMessages, mockTodos } from '../mockData';
-import { CalendarConnection, CalendarEvent, CoupleWorkspace, HabitDefinition, HabitRecord, Layer, Message, MessageCategory, ToDo, User, UserNames, WeatherLocation } from '../types';
+import { CalendarConnection, CalendarEvent, CoupleWorkspace, FeatureWish, HabitDefinition, HabitRecord, Layer, Message, MessageCategory, ToDo, User, UserNames, WeatherLocation } from '../types';
 import { isSupabaseConfigured, supabase, type Session } from './supabase';
 
 const DEFAULT_NAMES: UserNames = { him: 'Leo', her: 'Aria' };
@@ -54,6 +54,15 @@ function missingWeatherColumns(error: { message?: string; code?: string } | null
   ));
 }
 
+function missingFeatureWishesTable(error: { message?: string; code?: string } | null) {
+  return Boolean(error && (
+    error.code === '42P01'
+    || error.code === 'PGRST205'
+    || error.message?.includes('feature_wishes')
+    || error.message?.includes('Could not find the table')
+  ));
+}
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -92,6 +101,8 @@ export function useCoupleSyncStore(session: Session | null) {
   const [habitDefinitions, setHabitDefinitions] = useState<HabitDefinition[]>(INITIAL_HABIT_DEFINITIONS);
   const [calendarConnections, setCalendarConnections] = useState<CalendarConnection[]>([]);
   const [messages, setMessages] = useState<Message[]>(mockMessages);
+  const [featureWishes, setFeatureWishes] = useState<FeatureWish[]>([]);
+  const [featureWishesReady, setFeatureWishesReady] = useState(true);
   const [workspace, setWorkspace] = useState<CoupleWorkspace | null>(null);
   const [setupRequired, setSetupRequired] = useState(false);
   const [loading, setLoading] = useState(dbMode);
@@ -136,6 +147,7 @@ export function useCoupleSyncStore(session: Session | null) {
       todosResult,
       messagesResult,
       calendarConnectionsResult,
+      featureWishesResult,
     ] = await Promise.all([
       supabase.from('couple_members').select('user_id, role').eq('couple_id', coupleId),
       supabase.from('layers').select('*').eq('couple_id', coupleId).order('sort_order', { ascending: true }),
@@ -145,6 +157,7 @@ export function useCoupleSyncStore(session: Session | null) {
       supabase.from('todos').select('*').eq('couple_id', coupleId).order('created_at', { ascending: false }),
       supabase.from('inbox_messages').select('*').eq('couple_id', coupleId).order('created_at', { ascending: false }),
       supabase.from('calendar_connections').select('id, provider, provider_account_id, scopes, sync_status, last_synced_at, last_sync_error').eq('couple_id', coupleId).eq('user_id', session?.user.id ?? ''),
+      supabase.from('feature_wishes').select('id, content, created_by, created_at').eq('couple_id', coupleId).order('created_at', { ascending: true }),
     ]);
 
     tableError(membersResult.error);
@@ -155,8 +168,16 @@ export function useCoupleSyncStore(session: Session | null) {
     tableError(todosResult.error);
     tableError(messagesResult.error);
     tableError(calendarConnectionsResult.error);
+    if (missingFeatureWishesTable(featureWishesResult.error)) {
+      setFeatureWishesReady(false);
+      setFeatureWishes([]);
+    } else {
+      setFeatureWishesReady(true);
+      tableError(featureWishesResult.error);
+    }
 
     const memberRows = membersResult.data ?? [];
+    const memberRoleByUserId = new Map(memberRows.map((member: any) => [member.user_id, member.role]));
     const profileIds = memberRows.map((member: any) => member.user_id).filter(Boolean);
     setMemberProfileIds(profileIds);
 
@@ -308,6 +329,15 @@ export function useCoupleSyncStore(session: Session | null) {
         convertedEventId: message.converted_event_id,
         replies: repliesByParent.get(message.id) ?? [],
       })));
+
+    if (!featureWishesResult.error) {
+      setFeatureWishes((featureWishesResult.data ?? []).map((wish: any) => ({
+        id: wish.id,
+        content: wish.content,
+        createdAt: wish.created_at,
+        author: memberRoleByUserId.get(wish.created_by) ?? null,
+      })));
+    }
   }, [session]);
 
   const loadWorkspace = useCallback(async () => {
@@ -384,6 +414,7 @@ export function useCoupleSyncStore(session: Session | null) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'todos', filter }, () => reloadRef.current())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'inbox_messages', filter }, () => reloadRef.current())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'calendar_connections', filter }, () => reloadRef.current())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'feature_wishes', filter }, () => reloadRef.current())
       .subscribe();
 
     return () => {
@@ -1117,6 +1148,75 @@ export function useCoupleSyncStore(session: Session | null) {
     }
   }, [dbMode, session, workspace]);
 
+  const addFeatureWish = useCallback(async (content: string) => {
+    const wishContent = content.trim();
+    if (!wishContent) return;
+    const authorRole = workspace?.role ?? null;
+
+    if (dbMode && supabase && workspace && session) {
+      const { error: insertError } = await supabase
+        .from('feature_wishes')
+        .insert({
+          couple_id: workspace.coupleId,
+          content: wishContent,
+          created_by: session.user.id,
+        });
+
+      if (insertError) {
+        const message = missingFeatureWishesTable(insertError)
+          ? '需要先在 Supabase SQL Editor 运行功能许愿 migration'
+          : insertError.message;
+        setFeatureWishesReady(false);
+        setError(message);
+        return;
+      }
+
+      setFeatureWishesReady(true);
+      reloadRef.current();
+      return;
+    }
+
+    setFeatureWishes(previous => [
+      ...previous,
+      {
+        id: `wish_${Date.now()}`,
+        content: wishContent,
+        createdAt: nowIso(),
+        author: authorRole,
+      },
+    ]);
+  }, [dbMode, session, workspace]);
+
+  const updateFeatureWish = useCallback(async (id: string, content: string) => {
+    const wishContent = content.trim();
+    if (!wishContent) return;
+
+    const wish = featureWishes.find(item => item.id === id);
+    if (!wish || wish.content === wishContent) return;
+
+    setFeatureWishes(previous => previous.map(item => (
+      item.id === id ? { ...item, content: wishContent } : item
+    )));
+
+    if (dbMode && supabase) {
+      const { error: updateError } = await supabase
+        .from('feature_wishes')
+        .update({ content: wishContent })
+        .eq('id', id);
+
+      if (updateError) {
+        const message = missingFeatureWishesTable(updateError)
+          ? '需要先在 Supabase SQL Editor 运行功能许愿 migration'
+          : updateError.message;
+        setFeatureWishesReady(false);
+        setError(message);
+        reloadRef.current();
+      } else {
+        setFeatureWishesReady(true);
+      }
+    }
+  }, [dbMode, featureWishes]);
+
   const changeNames = useCallback(async (nextNames: UserNames) => {
     if (dbMode && supabase && session) {
       const role = workspace?.role;
@@ -1255,6 +1355,7 @@ export function useCoupleSyncStore(session: Session | null) {
   return {
     activeLayers,
     addCalendarEvent,
+    addFeatureWish,
     addHabitLog,
     addInboxMessage,
     addEventFromMessage,
@@ -1270,6 +1371,8 @@ export function useCoupleSyncStore(session: Session | null) {
     currentDate,
     error,
     events,
+    featureWishes,
+    featureWishesReady,
     habits,
     habitDefinitions,
     deleteCalendarEvent,
@@ -1295,6 +1398,7 @@ export function useCoupleSyncStore(session: Session | null) {
     startGoogleCalendarConnect,
     syncGoogleCalendar,
     updateCalendarEvent,
+    updateFeatureWish,
     updateHabitDefinition,
     updateLayerColor,
     updateTodoText,

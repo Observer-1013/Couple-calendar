@@ -467,11 +467,15 @@ export default function App() {
           workspace={store.workspace}
           layers={store.layers}
           habitDefinitions={store.habitDefinitions}
+          featureWishes={store.featureWishes}
+          featureWishesReady={store.featureWishesReady}
           theme={theme}
           setTheme={setTheme}
           changeNames={names => void store.changeNames(names)}
           updateLayerColor={store.updateLayerColor}
           updateHabitDefinition={store.updateHabitDefinition}
+          addFeatureWish={store.addFeatureWish}
+          updateFeatureWish={store.updateFeatureWish}
           openChangelog={() => setChangelogOpen(true)}
           onClose={() => setSettingsOpen(false)}
         />

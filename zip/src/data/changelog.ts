@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    id: '2026-06-23-feature-wishes',
+    date: '2026-06-23',
+    title: '设置里新增功能许愿',
+    summary: 'Settings 里新增可折叠的 Feature Wishes，用来一起记录以后想开发的功能。',
+    items: [
+      '双方都可以在功能许愿里一条条新增想法。',
+      '已有愿望可以直接编辑，适合慢慢补充和整理需求。',
+      '新增 Supabase feature_wishes 表，准备支持长期保存和实时同步。',
+    ],
+  },
+  {
     id: '2026-06-23-monday-calendar-start',
     date: '2026-06-23',
     title: '日历现在从周一开始',

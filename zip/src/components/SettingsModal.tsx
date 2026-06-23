@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Copy, History, Moon, RotateCcw, Sun } from 'lucide-react';
-import { CoupleWorkspace, HabitDefinition, Layer, UserNames } from '../types';
+import { Check, ChevronDown, Copy, History, Moon, Pencil, Plus, RotateCcw, Sun, X } from 'lucide-react';
+import { CoupleWorkspace, FeatureWish, HabitDefinition, Layer, UserNames } from '../types';
 import { cn } from '../lib/utils';
 import { CHANGELOG_ENTRIES } from '../data/changelog';
 
@@ -11,11 +11,15 @@ interface SettingsModalProps {
   workspace: CoupleWorkspace | null;
   layers: Layer[];
   habitDefinitions: HabitDefinition[];
+  featureWishes: FeatureWish[];
+  featureWishesReady: boolean;
   theme: ThemeMode;
   setTheme: (theme: ThemeMode) => void;
   changeNames: (names: UserNames) => void;
   updateLayerColor: (id: string, color: string) => void;
   updateHabitDefinition: (id: string, updates: Partial<Pick<HabitDefinition, 'name' | 'color' | 'active'>>) => void;
+  addFeatureWish: (content: string) => void;
+  updateFeatureWish: (id: string, content: string) => void;
   openChangelog: () => void;
   onClose: () => void;
 }
@@ -25,16 +29,24 @@ export function SettingsModal({
   workspace,
   layers,
   habitDefinitions,
+  featureWishes,
+  featureWishesReady,
   theme,
   setTheme,
   changeNames,
   updateLayerColor,
   updateHabitDefinition,
+  addFeatureWish,
+  updateFeatureWish,
   openChangelog,
   onClose,
 }: SettingsModalProps) {
   const [nameDraft, setNameDraft] = useState<UserNames>(userNames);
   const [copiedInvite, setCopiedInvite] = useState(false);
+  const [featureWishesOpen, setFeatureWishesOpen] = useState(false);
+  const [newFeatureWish, setNewFeatureWish] = useState('');
+  const [editingWishId, setEditingWishId] = useState<string | null>(null);
+  const [editingWishContent, setEditingWishContent] = useState('');
   const [layerColorDrafts, setLayerColorDrafts] = useState(() => (
     Object.fromEntries(layers.map(layer => [layer.id, layer.color || '#c8e6d9'])) as Record<string, string>
   ));
@@ -61,6 +73,40 @@ export function SettingsModal({
     } catch {
       setCopiedInvite(false);
     }
+  };
+
+  const formatWishDate = (timestamp: string) => {
+    const date = new Date(timestamp);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  };
+
+  const getWishAuthorName = (wish: FeatureWish) => {
+    if (wish.author === 'him') return userNames.him;
+    if (wish.author === 'her') return userNames.her;
+    return 'Shared';
+  };
+
+  const submitFeatureWish = () => {
+    if (!newFeatureWish.trim()) return;
+    addFeatureWish(newFeatureWish);
+    setNewFeatureWish('');
+  };
+
+  const startWishEdit = (wish: FeatureWish) => {
+    setEditingWishId(wish.id);
+    setEditingWishContent(wish.content);
+  };
+
+  const cancelWishEdit = () => {
+    setEditingWishId(null);
+    setEditingWishContent('');
+  };
+
+  const saveWishEdit = () => {
+    if (!editingWishId || !editingWishContent.trim()) return;
+    updateFeatureWish(editingWishId, editingWishContent);
+    cancelWishEdit();
   };
 
   const saveSettings = () => {
@@ -163,6 +209,102 @@ export function SettingsModal({
               </div>
             </section>
           )}
+
+          <section className="rounded-xl border border-[#eceef0] bg-[#fbfcfd]">
+            <button
+              onClick={() => setFeatureWishesOpen(previous => !previous)}
+              className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+            >
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold text-[#191c1e]">功能许愿</h3>
+                <p className="mt-0.5 text-xs text-[#72787c]">Feature Wishes · {featureWishes.length} 条</p>
+              </div>
+              <ChevronDown className={cn("h-4 w-4 shrink-0 text-[#72787c] transition-transform", featureWishesOpen && "rotate-180")} />
+            </button>
+
+            {featureWishesOpen && (
+              <div className="border-t border-[#eceef0] px-4 py-4">
+                {!featureWishesReady && (
+                  <p className="mb-3 rounded-lg bg-[#fff7f7] px-2.5 py-2 text-xs text-[#8f3d3d]">
+                    需要先在 Supabase SQL Editor 运行功能许愿 migration，才能让双方共享保存。
+                  </p>
+                )}
+
+                <div className="space-y-2">
+                  {featureWishes.map((wish, index) => (
+                    <div key={wish.id} className="rounded-lg border border-[#eceef0] bg-white p-3">
+                      {editingWishId === wish.id ? (
+                        <div className="space-y-2">
+                          <textarea
+                            value={editingWishContent}
+                            onChange={event => setEditingWishContent(event.target.value)}
+                            onKeyDown={event => {
+                              if (event.key === 'Escape') cancelWishEdit();
+                              if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') saveWishEdit();
+                            }}
+                            rows={2}
+                            className="w-full resize-none rounded-lg border border-[#eceef0] bg-[#fbfcfd] px-3 py-2 text-sm outline-none focus:border-[#446172]"
+                            autoFocus
+                          />
+                          <div className="flex justify-end gap-1">
+                            <button onClick={cancelWishEdit} className="rounded-md p-1.5 text-[#72787c] hover:bg-black/5" title="Cancel edit">
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                            <button onClick={saveWishEdit} className="rounded-md p-1.5 text-[#446172] hover:bg-[#446172]/10" title="Save edit">
+                              <Check className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-start gap-3">
+                          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#446172]/10 text-[10px] font-semibold text-[#446172]">
+                            {index + 1}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#42474c]">{wish.content}</p>
+                            <p className="mt-1 text-[10px] text-[#a0a5a9]">
+                              {getWishAuthorName(wish)}{formatWishDate(wish.createdAt) ? ` · ${formatWishDate(wish.createdAt)}` : ''}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => startWishEdit(wish)}
+                            className="rounded-md p-1.5 text-[#a0a5a9] hover:bg-[#446172]/10 hover:text-[#446172]"
+                            title="Edit wish"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {featureWishes.length === 0 && (
+                    <div className="rounded-lg border border-dashed border-[#d8dadc] bg-white/70 px-3 py-4 text-center text-xs text-[#a0a5a9]">
+                      还没有愿望，先写下第一条以后想开发的功能。
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-3 space-y-2">
+                  <textarea
+                    value={newFeatureWish}
+                    onChange={event => setNewFeatureWish(event.target.value)}
+                    rows={2}
+                    placeholder="写一个以后想加的功能..."
+                    className="w-full resize-none rounded-lg border border-[#eceef0] bg-white px-3 py-2 text-sm outline-none focus:border-[#446172]"
+                  />
+                  <button
+                    onClick={submitFeatureWish}
+                    disabled={!newFeatureWish.trim() || !featureWishesReady}
+                    className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-[#446172]/10 text-xs font-semibold text-[#446172] transition-colors hover:bg-[#446172]/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add Wish
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
 
           <section className="rounded-xl border border-[#eceef0] bg-[#fbfcfd] p-4">
             <div className="mb-3">
