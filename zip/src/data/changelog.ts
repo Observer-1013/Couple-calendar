@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    id: '2026-06-23-monday-calendar-start',
+    date: '2026-06-23',
+    title: '日历现在从周一开始',
+    summary: '月视图、周视图和年视图里的小月历都改成 Monday-first 排列。',
+    items: [
+      '月视图表头从 MON 到 SUN 显示。',
+      '周视图的起止范围改为周一到周日。',
+      '年视图每个月的小日历也同步使用周一开头。',
+    ],
+  },
+  {
     id: '2026-06-23-editable-todo-assignee',
     date: '2026-06-23',
     title: '待办归属现在可以修改',

@@ -5,6 +5,9 @@ import { cn } from '../lib/utils';
 import { HabitDefinition, HabitRecord, ToDo, CalendarEvent, ViewMode, UserNames, Layer, User } from '../types';
 import { readCalendarDragData } from '../lib/calendarDrag';
 
+const WEEK_STARTS_ON = 1;
+const WEEK_DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+
 interface CalendarProps {
   currentDate: Date;
   setCurrentDate: (d: Date) => void;
@@ -31,19 +34,18 @@ export function Calendar({ currentDate, setCurrentDate, todos, toggleTodo, habit
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(monthStart);
   
-  let startDate = startOfWeek(monthStart);
-  let endDate = endOfWeek(monthEnd);
+  let startDate = startOfWeek(monthStart, { weekStartsOn: WEEK_STARTS_ON });
+  let endDate = endOfWeek(monthEnd, { weekStartsOn: WEEK_STARTS_ON });
 
   if (viewMode === 'Week') {
-    startDate = startOfWeek(currentDate);
-    endDate = endOfWeek(currentDate);
+    startDate = startOfWeek(currentDate, { weekStartsOn: WEEK_STARTS_ON });
+    endDate = endOfWeek(currentDate, { weekStartsOn: WEEK_STARTS_ON });
   } else if (viewMode === 'Day') {
     startDate = currentDate;
     endDate = currentDate;
   }
 
   const days = eachDayOfInterval({ start: startDate, end: endDate });
-  const weekDays = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
   const hours = Array.from({length: 24}, (_, i) => i);
 
   const showLayer = (layerId: string) => activeLayers.includes(layerId);
@@ -286,12 +288,15 @@ export function Calendar({ currentDate, setCurrentDate, todos, toggleTodo, habit
                {months.map(month => {
                    const mStart = startOfMonth(month);
                    const mEnd = endOfMonth(month);
-                   const mDays = eachDayOfInterval({start: startOfWeek(mStart), end: endOfWeek(mEnd)});
+                   const mDays = eachDayOfInterval({
+                     start: startOfWeek(mStart, { weekStartsOn: WEEK_STARTS_ON }),
+                     end: endOfWeek(mEnd, { weekStartsOn: WEEK_STARTS_ON }),
+                   });
                    return (
                        <div key={month.toString()} className="flex flex-col">
                            <h3 className={cn("text-lg font-semibold font-display mb-4 pl-1", isSameMonth(month, new Date()) ? "text-[#a65d5d]" : "text-[#446172]")}>{format(month, 'MMMM')}</h3>
                            <div className="grid grid-cols-7 gap-y-2">
-                               {weekDays.map(d => <div key={d} className="text-[9px] font-bold text-[#a0a5a9] text-center mb-1">{d.charAt(0)}</div>)}
+                               {WEEK_DAYS.map(d => <div key={d} className="text-[9px] font-bold text-[#a0a5a9] text-center mb-1">{d.charAt(0)}</div>)}
                                {mDays.map(day => {
                                    const isCurrentM = isSameMonth(day, month);
                                    const isTD = isToday(day);
@@ -349,7 +354,7 @@ export function Calendar({ currentDate, setCurrentDate, todos, toggleTodo, habit
       {viewMode === 'Month' && (
         <div className="flex-1 flex flex-col min-h-0 border border-[#eceef0] rounded-2xl overflow-hidden bg-[#eceef0] gap-px max-h-fit mt-2 md:mt-4 shadow-sm">
           <div className="grid grid-cols-7 bg-white">
-          {weekDays.map(day => (
+          {WEEK_DAYS.map(day => (
             <div key={day} className="text-center text-[10px] md:text-[11px] font-semibold tracking-widest text-[#a0a5a9] py-3">
               {day}
             </div>
