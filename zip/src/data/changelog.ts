@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    id: '2026-06-25-smoother-background-sync',
+    date: '2026-06-25',
+    title: '数据同步不再打断页面',
+    summary: '新增、编辑或删除内容后，页面会留在当前位置并在后台完成 Supabase 同步。',
+    items: [
+      '全屏 Loading 现在只用于首次打开和恢复登录状态。',
+      '日常操作触发的数据刷新改为后台进行，不再让日历短暂白屏。',
+      '短时间内重复到达的本地刷新和 Realtime 通知会合并，减少重复查询。',
+    ],
+  },
+  {
     id: '2026-06-23-feature-wishes',
     date: '2026-06-23',
     title: '设置里新增功能许愿',

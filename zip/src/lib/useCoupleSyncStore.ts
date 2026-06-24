@@ -113,6 +113,7 @@ export function useCoupleSyncStore(session: Session | null) {
   const layerIdsRef = useRef<string[]>(INITIAL_LAYERS.map(layer => layer.id));
   const [memberProfileIds, setMemberProfileIds] = useState<string[]>([]);
   const reloadRef = useRef<() => void>(() => {});
+  const reloadTimerRef = useRef<number | null>(null);
 
   const ensureProfile = useCallback(async () => {
     if (!supabase || !session) return;
@@ -340,13 +341,13 @@ export function useCoupleSyncStore(session: Session | null) {
     }
   }, [session]);
 
-  const loadWorkspace = useCallback(async () => {
+  const loadWorkspace = useCallback(async (showLoading = false) => {
     if (!dbMode || !supabase || !session) {
       setLoading(false);
       return;
     }
 
-    setLoading(true);
+    if (showLoading) setLoading(true);
     setError(null);
 
     try {
@@ -387,18 +388,32 @@ export function useCoupleSyncStore(session: Session | null) {
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to load CoupleSync data');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   }, [dbMode, ensureProfile, loadCoupleData, session]);
 
   useEffect(() => {
     reloadRef.current = () => {
-      void loadWorkspace();
+      if (reloadTimerRef.current !== null) {
+        window.clearTimeout(reloadTimerRef.current);
+      }
+
+      reloadTimerRef.current = window.setTimeout(() => {
+        reloadTimerRef.current = null;
+        void loadWorkspace();
+      }, 150);
+    };
+
+    return () => {
+      if (reloadTimerRef.current !== null) {
+        window.clearTimeout(reloadTimerRef.current);
+        reloadTimerRef.current = null;
+      }
     };
   }, [loadWorkspace]);
 
   useEffect(() => {
-    void loadWorkspace();
+    void loadWorkspace(true);
   }, [loadWorkspace]);
 
   useEffect(() => {
