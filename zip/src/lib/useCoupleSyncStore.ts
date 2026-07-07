@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { mockEvents, mockHabits, mockMessages, mockTodos } from '../mockData';
-import { CalendarConnection, CalendarEvent, CoupleWorkspace, FeatureWish, HabitDefinition, HabitRecord, Layer, Message, MessageCategory, ToDo, User, UserNames, WeatherLocation } from '../types';
+import { CalendarConnection, CalendarEvent, CoupleWorkspace, FeatureWish, HabitDefinition, HabitRecord, Layer, Message, MessageCategory, ToDo, TodoRollover, User, UserNames, WeatherLocation } from '../types';
 import { isSupabaseConfigured, supabase, type Session } from './supabase';
 
 const DEFAULT_NAMES: UserNames = { him: 'Leo', her: 'Aria' };
@@ -63,8 +63,24 @@ function missingFeatureWishesTable(error: { message?: string; code?: string } | 
   ));
 }
 
+function missingTodoRolloversTable(error: { message?: string; code?: string } | null) {
+  return Boolean(error && (
+    error.code === '42P01'
+    || error.code === 'PGRST205'
+    || error.message?.includes('todo_rollovers')
+    || error.message?.includes('Could not find the table')
+  ));
+}
+
 function nowIso() {
   return new Date().toISOString();
+}
+
+function localDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function todayAtNoon() {
@@ -96,6 +112,7 @@ export function useCoupleSyncStore(session: Session | null) {
   const [layers, setLayers] = useState<Layer[]>(INITIAL_LAYERS);
   const [activeLayers, setActiveLayers] = useState<string[]>(INITIAL_LAYERS.map(layer => layer.id));
   const [todos, setTodos] = useState<ToDo[]>(mockTodos);
+  const [todoRollovers, setTodoRollovers] = useState<TodoRollover[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>(mockEvents);
   const [habits, setHabits] = useState<HabitRecord[]>(mockHabits);
   const [habitDefinitions, setHabitDefinitions] = useState<HabitDefinition[]>(INITIAL_HABIT_DEFINITIONS);
@@ -146,6 +163,7 @@ export function useCoupleSyncStore(session: Session | null) {
       habitDefinitionsResult,
       habitsResult,
       todosResult,
+      todoRolloversResult,
       messagesResult,
       calendarConnectionsResult,
       featureWishesResult,
@@ -156,6 +174,7 @@ export function useCoupleSyncStore(session: Session | null) {
       supabase.from('habit_definitions').select('*').eq('couple_id', coupleId).order('sort_order', { ascending: true }),
       supabase.from('habit_logs').select('id, habit_id, habit_date, owner_role, habit_definitions(name, color)').eq('couple_id', coupleId),
       supabase.from('todos').select('*').eq('couple_id', coupleId).order('created_at', { ascending: false }),
+      supabase.from('todo_rollovers').select('*').eq('couple_id', coupleId).order('from_date', { ascending: true }),
       supabase.from('inbox_messages').select('*').eq('couple_id', coupleId).order('created_at', { ascending: false }),
       supabase.from('calendar_connections').select('id, provider, provider_account_id, scopes, sync_status, last_synced_at, last_sync_error').eq('couple_id', coupleId).eq('user_id', session?.user.id ?? ''),
       supabase.from('feature_wishes').select('id, content, created_by, created_at').eq('couple_id', coupleId).order('created_at', { ascending: true }),
@@ -167,6 +186,12 @@ export function useCoupleSyncStore(session: Session | null) {
     tableError(habitDefinitionsResult.error);
     tableError(habitsResult.error);
     tableError(todosResult.error);
+    const todoRolloversMissing = missingTodoRolloversTable(todoRolloversResult.error);
+    if (todoRolloversMissing) {
+      setTodoRollovers([]);
+    } else {
+      tableError(todoRolloversResult.error);
+    }
     tableError(messagesResult.error);
     tableError(calendarConnectionsResult.error);
     if (missingFeatureWishesTable(featureWishesResult.error)) {
@@ -281,13 +306,89 @@ export function useCoupleSyncStore(session: Session | null) {
       };
     }));
 
-    setTodos((todosResult.data ?? []).map((todo: any) => ({
+    const mapTodoRow = (todo: any): ToDo => ({
       id: todo.id,
       text: todo.text,
       completed: todo.completed,
       date: todo.scheduled_date || undefined,
       assignee: todo.assignee_role,
-    })));
+    });
+    const mapRolloverRow = (rollover: any): TodoRollover => ({
+      id: rollover.id,
+      todoId: rollover.todo_id,
+      text: rollover.text,
+      fromDate: rollover.from_date,
+      toDate: rollover.to_date,
+      assignee: rollover.assignee_role,
+      rolledOverAt: rollover.rolled_over_at,
+    });
+    const todoRows = todosResult.data ?? [];
+    const mappedTodos = todoRows.map(mapTodoRow);
+    const rolloverRows = todoRolloversMissing ? [] : (todoRolloversResult.data ?? []);
+    const mappedRollovers = rolloverRows.map(mapRolloverRow);
+
+    if (todoRolloversMissing) {
+      setTodos(mappedTodos);
+    } else {
+      const todayKey = localDateKey();
+      const staleTodoRows = todoRows.filter((todo: any) => (
+        todo.scheduled_date
+        && todo.scheduled_date < todayKey
+        && !todo.completed
+      ));
+
+      if (staleTodoRows.length > 0) {
+        const existingRolloverKeys = new Set(
+          rolloverRows.map((rollover: any) => `${rollover.todo_id}:${rollover.from_date}`)
+        );
+        const rolloverPayload = staleTodoRows
+          .filter((todo: any) => !existingRolloverKeys.has(`${todo.id}:${todo.scheduled_date}`))
+          .map((todo: any) => ({
+            couple_id: coupleId,
+            todo_id: todo.id,
+            from_date: todo.scheduled_date,
+            to_date: todayKey,
+            text: todo.text,
+            assignee_role: todo.assignee_role,
+            rolled_over_by: session?.user.id ?? null,
+          }));
+        let insertedRolloverRows: any[] = [];
+
+        if (rolloverPayload.length > 0) {
+          const { data, error: rolloverInsertError } = await supabase
+            .from('todo_rollovers')
+            .upsert(rolloverPayload, {
+              onConflict: 'couple_id,todo_id,from_date',
+              ignoreDuplicates: true,
+            })
+            .select('*');
+
+          tableError(rolloverInsertError);
+          insertedRolloverRows = data ?? [];
+        }
+
+        const { error: todoUpdateError } = await supabase
+          .from('todos')
+          .update({ scheduled_date: todayKey })
+          .in('id', staleTodoRows.map((todo: any) => todo.id));
+
+        tableError(todoUpdateError);
+
+        const staleTodoIds = new Set(staleTodoRows.map((todo: any) => todo.id));
+        const knownRolloverIds = new Set(mappedRollovers.map(rollover => rollover.id));
+        const insertedRollovers = insertedRolloverRows
+          .map(mapRolloverRow)
+          .filter(rollover => !knownRolloverIds.has(rollover.id));
+
+        setTodos(mappedTodos.map(todo => (
+          staleTodoIds.has(todo.id) ? { ...todo, date: todayKey } : todo
+        )));
+        setTodoRollovers([...mappedRollovers, ...insertedRollovers]);
+      } else {
+        setTodos(mappedTodos);
+        setTodoRollovers(mappedRollovers);
+      }
+    }
 
     setCalendarConnections((calendarConnectionsResult.data ?? []).map((connection: any) => ({
       id: connection.id,
@@ -417,6 +518,30 @@ export function useCoupleSyncStore(session: Session | null) {
   }, [loadWorkspace]);
 
   useEffect(() => {
+    if (!dbMode) return;
+
+    let midnightTimer: number | null = null;
+    const scheduleMidnightReload = () => {
+      const now = new Date();
+      const nextMidnight = new Date(now);
+      nextMidnight.setDate(now.getDate() + 1);
+      nextMidnight.setHours(0, 0, 5, 0);
+      midnightTimer = window.setTimeout(() => {
+        reloadRef.current();
+        scheduleMidnightReload();
+      }, nextMidnight.getTime() - now.getTime());
+    };
+
+    scheduleMidnightReload();
+
+    return () => {
+      if (midnightTimer !== null) {
+        window.clearTimeout(midnightTimer);
+      }
+    };
+  }, [dbMode]);
+
+  useEffect(() => {
     if (!dbMode || !supabase || !workspace?.coupleId) return;
 
     const filter = `couple_id=eq.${workspace.coupleId}`;
@@ -427,6 +552,7 @@ export function useCoupleSyncStore(session: Session | null) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'habit_definitions', filter }, () => reloadRef.current())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'habit_logs', filter }, () => reloadRef.current())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'todos', filter }, () => reloadRef.current())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'todo_rollovers', filter }, () => reloadRef.current())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'inbox_messages', filter }, () => reloadRef.current())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'calendar_connections', filter }, () => reloadRef.current())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'feature_wishes', filter }, () => reloadRef.current())
@@ -1406,6 +1532,7 @@ export function useCoupleSyncStore(session: Session | null) {
     setupRequired,
     setCurrentDate,
     todos,
+    todoRollovers,
     toggleAllLayers,
     toggleLayer,
     toggleTodo,

@@ -415,6 +415,7 @@ export default function App() {
             currentDate={store.currentDate} 
             setCurrentDate={store.setCurrentDate}
             todos={store.todos}
+            todoRollovers={store.todoRollovers}
             toggleTodo={store.toggleTodo}
             habits={store.habits}
             habitDefinitions={store.habitDefinitions}

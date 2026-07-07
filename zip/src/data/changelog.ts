@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    id: '2026-07-07-todo-rollovers',
+    date: '2026-07-07',
+    title: '未完成待办会移动式顺延',
+    summary: '过期未完成的已排期待办会移动到今天，旧日期保留淡色划线痕迹，避免重复复制。',
+    items: [
+      '自动顺延现在更新同一条 Supabase todo，不再每天复制一条新的待办。',
+      '旧日期会显示浅蓝灰色、文字划线的历史框，表示这条任务已经顺延走了。',
+      '新增 todo_rollovers 历史表，用来长期保存旧日期痕迹并支持实时同步。',
+    ],
+  },
+  {
     id: '2026-06-25-smoother-background-sync',
     date: '2026-06-25',
     title: '数据同步不再打断页面',

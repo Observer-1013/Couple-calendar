@@ -2,7 +2,7 @@ import { useState, type DragEvent } from 'react';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isToday, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays } from 'date-fns';
 import { CalendarPlus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { HabitDefinition, HabitRecord, ToDo, CalendarEvent, ViewMode, UserNames, Layer, User } from '../types';
+import { HabitDefinition, HabitRecord, ToDo, TodoRollover, CalendarEvent, ViewMode, UserNames, Layer, User } from '../types';
 import { readCalendarDragData } from '../lib/calendarDrag';
 
 const WEEK_STARTS_ON = 1;
@@ -12,6 +12,7 @@ interface CalendarProps {
   currentDate: Date;
   setCurrentDate: (d: Date) => void;
   todos: ToDo[];
+  todoRollovers: TodoRollover[];
   toggleTodo: (id: string) => void;
   habits: HabitRecord[];
   habitDefinitions: HabitDefinition[];
@@ -28,7 +29,7 @@ interface CalendarProps {
   openEventEditor: (event: CalendarEvent) => void;
 }
 
-export function Calendar({ currentDate, setCurrentDate, todos, toggleTodo, habits, habitDefinitions, events, layers, activeLayers, viewMode, currentUserRole, userNames, onTodoDropToDate, onMessageDropToDate, addHabitLog, openEventDialog, openEventEditor }: CalendarProps) {
+export function Calendar({ currentDate, setCurrentDate, todos, todoRollovers, toggleTodo, habits, habitDefinitions, events, layers, activeLayers, viewMode, currentUserRole, userNames, onTodoDropToDate, onMessageDropToDate, addHabitLog, openEventDialog, openEventEditor }: CalendarProps) {
   const [dropTargetDate, setDropTargetDate] = useState<string | null>(null);
   const [habitMenuDate, setHabitMenuDate] = useState<string | null>(null);
   const monthStart = startOfMonth(currentDate);
@@ -100,6 +101,12 @@ export function Calendar({ currentDate, setCurrentDate, todos, toggleTodo, habit
     return todos.filter(t => t.date === formattedDate);
   };
 
+  const getTodoRolloversForDate = (date: Date) => {
+    if (!showLayer('todos')) return [];
+    const formattedDate = format(date, 'yyyy-MM-dd');
+    return todoRollovers.filter(todo => todo.fromDate === formattedDate);
+  };
+
   const isHabitLogged = (date: string, habit: HabitDefinition) => habits.some(log => (
     log.date === date
     && log.user === currentUserRole
@@ -157,6 +164,19 @@ export function Calendar({ currentDate, setCurrentDate, todos, toggleTodo, habit
     </button>
   );
 
+  const renderTodoRollover = (todo: TodoRollover) => (
+    <div
+      key={todo.id}
+      title={`Rolled over to ${todo.toDate}`}
+      className="w-full text-left text-[10px] md:text-xs p-1 rounded bg-[#e8eef4]/70 border border-[#d7e0e8] flex items-start gap-1 md:gap-1.5 text-[#7a8792]"
+    >
+      <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded flex-shrink-0 mt-0.5 border border-[#aebdcc] bg-[#dbe5ee] flex items-center justify-center shadow-sm">
+        <div className="w-1.5 h-1.5 bg-white/80 rounded-[1px]" />
+      </div>
+      <span className="truncate line-through">{todo.text}</span>
+    </div>
+  );
+
   const handlePrev = () => {
     if (viewMode === 'Year') setCurrentDate(subMonths(currentDate, 12));
     if (viewMode === 'Month') setCurrentDate(subMonths(currentDate, 1));
@@ -188,6 +208,7 @@ export function Calendar({ currentDate, setCurrentDate, todos, toggleTodo, habit
           {days.map(day => {
             const formattedDate = format(day, 'yyyy-MM-dd');
             const dayTodos = getTodosForDate(day);
+            const dayTodoRollovers = getTodoRolloversForDate(day);
             return (
              <div
                key={day.toString()}
@@ -212,6 +233,7 @@ export function Calendar({ currentDate, setCurrentDate, todos, toggleTodo, habit
                            {e.title}
                          </button>
                      ))}
+                     {dayTodoRollovers.map(todo => renderTodoRollover(todo))}
                      {dayTodos.map(todo => renderTodoButton(todo))}
                  </div>
              </div>
@@ -301,6 +323,7 @@ export function Calendar({ currentDate, setCurrentDate, todos, toggleTodo, habit
                                    const isCurrentM = isSameMonth(day, month);
                                    const isTD = isToday(day);
                                    const hasEvent = getEventsForDate(day).length > 0;
+                                   const hasTodoRollover = getTodoRolloversForDate(day).length > 0;
                                    return (
                                        <div key={day.toString()} className="flex flex-col items-center justify-center">
                                            <div className={cn("w-6 h-6 flex items-center justify-center rounded-full text-xs transition-colors", 
@@ -310,7 +333,7 @@ export function Calendar({ currentDate, setCurrentDate, todos, toggleTodo, habit
                                            )}>
                                               {format(day, 'd')}
                                            </div>
-                                           <div className={cn("w-1 h-1 rounded-full mt-0.5", hasEvent && isCurrentM ? "bg-[#446172]" : "bg-transparent")} />
+                                           <div className={cn("w-1 h-1 rounded-full mt-0.5", (hasEvent || hasTodoRollover) && isCurrentM ? "bg-[#446172]" : "bg-transparent")} />
                                        </div>
                                    )
                                })}
@@ -368,6 +391,7 @@ export function Calendar({ currentDate, setCurrentDate, todos, toggleTodo, habit
             const dots = getDotsForDate(day);
             const dayEvents = getEventsForDate(day);
             const dayTodos = getTodosForDate(day);
+            const dayTodoRollovers = getTodoRolloversForDate(day);
             const formattedDate = format(day, 'yyyy-MM-dd');
             const dateDropProps = getDateDropProps(day, isCurrMonth);
 
@@ -436,6 +460,7 @@ export function Calendar({ currentDate, setCurrentDate, todos, toggleTodo, habit
                   ))}
 
                   {/* To-Dos */}
+                  {dayTodoRollovers.map(todo => renderTodoRollover(todo))}
                   {dayTodos.map(todo => renderTodoButton(todo))}
 
                 </div>

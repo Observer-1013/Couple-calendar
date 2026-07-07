@@ -25,6 +25,16 @@ export interface ToDo {
   assignee: 'both' | User | 'unassigned';
 }
 
+export interface TodoRollover {
+  id: string;
+  todoId: string;
+  text: string;
+  fromDate: string;
+  toDate: string;
+  assignee: 'both' | User | 'unassigned';
+  rolledOverAt: string;
+}
+
 export interface HabitRecord {
   id: string;
   date: string; // YYYY-MM-DD
