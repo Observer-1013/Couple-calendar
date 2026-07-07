@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    id: '2026-07-07-personal-todo-rollovers',
+    date: '2026-07-07',
+    title: '修正待办顺延范围和显示方式',
+    summary: '待办顺延现在只作用于当前登录者自己的个人任务，不再移动共享待办。',
+    items: [
+      'Shared 待办和对方的个人待办不会被自动顺延逻辑修改。',
+      '旧日期只保留浅色划线文字和小方框，不再用浅色背景块突出显示。',
+      '每个被顺延的任务只保留最初日期和最新日期，中间日期不会继续堆积。',
+    ],
+  },
+  {
     id: '2026-07-07-todo-rollovers',
     date: '2026-07-07',
     title: '未完成待办会移动式顺延',

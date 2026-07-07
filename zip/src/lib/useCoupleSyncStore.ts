@@ -325,7 +325,14 @@ export function useCoupleSyncStore(session: Session | null) {
     const todoRows = todosResult.data ?? [];
     const mappedTodos = todoRows.map(mapTodoRow);
     const rolloverRows = todoRolloversMissing ? [] : (todoRolloversResult.data ?? []);
-    const mappedRollovers = rolloverRows.map(mapRolloverRow);
+    const originalRolloverRows = Array.from(rolloverRows.reduce((byTodoId: Map<string, any>, rollover: any) => {
+      const current = byTodoId.get(rollover.todo_id);
+      if (!current || rollover.from_date < current.from_date) {
+        byTodoId.set(rollover.todo_id, rollover);
+      }
+      return byTodoId;
+    }, new Map<string, any>()).values());
+    const mappedRollovers = originalRolloverRows.map(mapRolloverRow);
 
     if (todoRolloversMissing) {
       setTodos(mappedTodos);
@@ -335,14 +342,14 @@ export function useCoupleSyncStore(session: Session | null) {
         todo.scheduled_date
         && todo.scheduled_date < todayKey
         && !todo.completed
+        && nextWorkspace.role
+        && todo.assignee_role === nextWorkspace.role
       ));
 
       if (staleTodoRows.length > 0) {
-        const existingRolloverKeys = new Set(
-          rolloverRows.map((rollover: any) => `${rollover.todo_id}:${rollover.from_date}`)
-        );
+        const existingRolloverTodoIds = new Set(originalRolloverRows.map((rollover: any) => rollover.todo_id));
         const rolloverPayload = staleTodoRows
-          .filter((todo: any) => !existingRolloverKeys.has(`${todo.id}:${todo.scheduled_date}`))
+          .filter((todo: any) => !existingRolloverTodoIds.has(todo.id))
           .map((todo: any) => ({
             couple_id: coupleId,
             todo_id: todo.id,
@@ -824,9 +831,60 @@ export function useCoupleSyncStore(session: Session | null) {
   }, [dbMode, session, todos]);
 
   const assignTodoToDate = useCallback(async (id: string, dateStr: string) => {
+    const todo = todos.find(item => item.id === id);
     setTodos(previous => previous.map(item => item.id === id ? { ...item, date: dateStr } : item));
 
     if (dbMode && supabase) {
+      const shouldTrackOriginalDate = Boolean(
+        todo?.date
+        && todo.date !== dateStr
+        && workspace?.role
+        && todo.assignee === workspace.role
+        && !todoRollovers.some(rollover => rollover.todoId === id)
+      );
+
+      if (shouldTrackOriginalDate && workspace && session && todo?.date) {
+        const { data: rolloverData, error: rolloverError } = await supabase
+          .from('todo_rollovers')
+          .upsert({
+            couple_id: workspace.coupleId,
+            todo_id: id,
+            from_date: todo.date,
+            to_date: dateStr,
+            text: todo.text,
+            assignee_role: todo.assignee,
+            rolled_over_by: session.user.id,
+          }, {
+            onConflict: 'couple_id,todo_id,from_date',
+            ignoreDuplicates: true,
+          })
+          .select('*');
+
+        if (rolloverError && !missingTodoRolloversTable(rolloverError)) {
+          setError(rolloverError.message);
+          reloadRef.current();
+          return;
+        }
+
+        const insertedRollover = (rolloverData ?? [])[0];
+        if (insertedRollover) {
+          setTodoRollovers(previous => previous.some(rollover => rollover.todoId === id)
+            ? previous
+            : [
+                ...previous,
+                {
+                  id: insertedRollover.id,
+                  todoId: insertedRollover.todo_id,
+                  text: insertedRollover.text,
+                  fromDate: insertedRollover.from_date,
+                  toDate: insertedRollover.to_date,
+                  assignee: insertedRollover.assignee_role,
+                  rolledOverAt: insertedRollover.rolled_over_at,
+                },
+              ]);
+        }
+      }
+
       const { error: updateError } = await supabase
         .from('todos')
         .update({ scheduled_date: dateStr })
@@ -837,7 +895,7 @@ export function useCoupleSyncStore(session: Session | null) {
         reloadRef.current();
       }
     }
-  }, [dbMode]);
+  }, [dbMode, session, todoRollovers, todos, workspace]);
 
   const unassignTodoFromDate = useCallback(async (id: string) => {
     setTodos(previous => previous.map(item => item.id === id ? { ...item, date: undefined } : item));
