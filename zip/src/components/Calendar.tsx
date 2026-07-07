@@ -179,7 +179,7 @@ export function Calendar({ currentDate, setCurrentDate, todos, todoRollovers, to
       className="w-full text-left text-[10px] md:text-xs p-1 rounded flex items-start gap-1 md:gap-1.5 text-[#a8b0b8]"
     >
       <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded flex-shrink-0 mt-0.5 border border-[#cbd3da] flex items-center justify-center">
-        <div className="w-1.5 h-1.5 bg-[#cbd3da] rounded-[1px]" />
+        <div className="w-1.5 h-1.5 bg-transparent rounded-[1px]" />
       </div>
       <span className="truncate line-through">{todo.text}</span>
     </div>
