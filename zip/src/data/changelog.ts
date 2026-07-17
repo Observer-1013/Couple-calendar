@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    id: '2026-07-17-month-calendar-layout',
+    date: '2026-07-17',
+    title: '月历不再裁掉月底日期',
+    summary: '月视图会在可视区域内完整显示所有周，每个日期格子保持等高。',
+    items: [
+      '五周和六周月份都会自动等分日历可用高度，后面的日期不再被页面底部裁掉。',
+      '同一天的日程或待办较多时，可以只在该日期格子内上下滚动查看。',
+      '日期内容的滚动条默认隐藏，鼠标移入时才会轻微显示。',
+    ],
+  },
+  {
     id: '2026-07-07-personal-todo-rollovers',
     date: '2026-07-07',
     title: '修正待办顺延范围和显示方式',

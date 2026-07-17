@@ -383,8 +383,11 @@ export function Calendar({ currentDate, setCurrentDate, todos, todoRollovers, to
       {(viewMode === 'Day' || viewMode === 'Week') && renderTimeGrid()}
 
       {viewMode === 'Month' && (
-        <div className="flex-1 flex flex-col min-h-0 border border-[#eceef0] rounded-2xl overflow-hidden bg-[#eceef0] gap-px max-h-fit mt-2 md:mt-4 shadow-sm">
-          <div className="grid grid-cols-7 bg-white">
+        <div
+          className="flex-1 flex flex-col min-h-0 border border-[#eceef0] rounded-2xl overflow-hidden bg-[#eceef0] gap-px max-h-fit mt-2 md:mt-4 shadow-sm"
+          style={{ maxHeight: 'none' }}
+        >
+          <div className="grid grid-cols-7 bg-white shrink-0">
           {WEEK_DAYS.map(day => (
             <div key={day} className="text-center text-[10px] md:text-[11px] font-semibold tracking-widest text-[#a0a5a9] py-3">
               {day}
@@ -393,7 +396,10 @@ export function Calendar({ currentDate, setCurrentDate, todos, todoRollovers, to
         </div>
 
         {/* Days Grid */}
-        <div className="flex-1 grid gap-px grid-cols-7 bg-[#eceef0]">
+        <div
+          className="flex-1 min-h-0 grid gap-px grid-cols-7 bg-[#eceef0]"
+          style={{ gridTemplateRows: `repeat(${days.length / 7}, minmax(0, 1fr))` }}
+        >
           {days.map((day) => {
             const isCurrMonth = isSameMonth(day, monthStart);
             const dots = getDotsForDate(day);
@@ -408,7 +414,7 @@ export function Calendar({ currentDate, setCurrentDate, todos, todoRollovers, to
                 key={day.toString()} 
                 {...dateDropProps}
                 className={cn(
-                  "bg-white p-1 md:p-2 min-h-[82px] sm:min-h-[100px] md:min-h-[120px] transition-colors relative flex flex-col gap-1",
+                  "bg-white p-1 md:p-2 min-h-0 min-w-0 overflow-hidden transition-colors relative flex flex-col gap-1",
                   !isCurrMonth && "opacity-40 pointer-events-none",
                   dropTargetDate === formattedDate && "bg-[#c8e6d9]/30 ring-2 ring-inset ring-[#446172]/30"
                 )}
@@ -452,7 +458,7 @@ export function Calendar({ currentDate, setCurrentDate, todos, todoRollovers, to
                   )}
                 </div>
 
-                <div className="flex-1 overflow-y-auto no-scrollbar space-y-1">
+                <div className="calendar-day-scroll flex-1 min-h-0 overflow-y-auto no-scrollbar overscroll-contain space-y-1 pr-0.5">
                   
                   {/* Events */}
                   {dayEvents.map(event => (
